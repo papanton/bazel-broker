@@ -188,6 +188,13 @@ final class BrokerStore {
             } catch {
                 connection = .disconnected(reason: Self.describe(error))
                 if daemon == .running { daemon = .offline }
+                // Self-heal: if the daemon is actually down (not a transient socket
+                // drop), re-bootstrap it as a LaunchAgent so the app recovers without
+                // a relaunch. Throttled by the reconnect backoff below.
+                if !Task.isCancelled, await DaemonController.probe(config: probingConfig) == nil {
+                    _ = await bootstrapAgent(DaemonController.startAgent,
+                                             failurePrefix: "broker restart failed")
+                }
             }
             if Task.isCancelled { break }
             try? await Task.sleep(for: .seconds(backoff.next()))
