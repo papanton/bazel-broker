@@ -1,0 +1,5 @@
+module(name = "bazel_broker_testws", version = "0.0.0")
+
+# rules_shell provides sh_binary/sh_test on Bazel 8+ (native sh_* are being removed).
+# Pin the patch at T7 to whatever the resolved Bazel version ships; this is the only external dep.
+bazel_dep(name = "rules_shell", version = "0.3.0")

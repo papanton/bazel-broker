@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# tools/bazel — broker interception hook (PLACEHOLDER; real admission logic lands in E5).
+# Must exec $BAZEL_REAL (set by the launcher), never `bazel`, to avoid infinite recursion.
+set -euo pipefail
+exec "${BAZEL_REAL:?tools/bazel must be invoked via the bazel launcher with BAZEL_REAL set}" "$@"
