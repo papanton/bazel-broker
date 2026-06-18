@@ -1,9 +1,15 @@
 name: release
-# Build universal artifacts on a version tag and attach them to a GitHub Release.
-# Push a tag to ship:  git tag v0.1.0 && git push origin v0.1.0
+# Build universal artifacts and attach them to a GitHub Release.
+# Manual-dispatch for now: the menu-bar app needs a recent Xcode/SDK that the
+# hosted macos runner may not have, so releases are currently cut locally
+# (`make dist VERSION=x` + `gh release create`). Re-enable the tag trigger once
+# the runner's Xcode is pinned to match (uncomment below).
 on:
-  push:
-    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version: { description: "version, e.g. 0.1.0", required: true }
+  # push:
+  #   tags: ["v*"]
 
 permissions:
   contents: write
@@ -22,7 +28,7 @@ jobs:
         run: brew install xcodegen
 
       - name: Build universal artifacts
-        run: make dist VERSION=${GITHUB_REF_NAME#v}
+        run: make dist VERSION=${{ inputs.version }}
         # To notarize for public download, set these and add a notarize step:
         #   CODESIGN_ID, plus notarytool creds (APPLE_ID / TEAM_ID / app-specific pw).
         # env:
@@ -30,8 +36,8 @@ jobs:
 
       - name: Publish release
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/*.zip dist/*.tar.gz \
-            --title "$GITHUB_REF_NAME" --generate-notes
+          gh release create "v${{ inputs.version }}" dist/*.zip dist/*.tar.gz \
+            --title "v${{ inputs.version }}" --generate-notes
           echo "### Homebrew artifacts" >> "$GITHUB_STEP_SUMMARY"
           (cd dist && shasum -a 256 *) >> "$GITHUB_STEP_SUMMARY"
         env:
