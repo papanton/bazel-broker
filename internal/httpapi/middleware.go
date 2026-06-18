@@ -38,20 +38,11 @@ func authExempt(path string) bool {
 	return strings.HasPrefix(path, "/profile/")
 }
 
-// webPublicPath reports whether a path is a dashboard entry point that must load
-// before the browser holds a session: the page itself, its static assets, and the
-// login endpoint that mints the session from the bearer token. These carry no
-// secrets; the data/kill routes still require the session cookie via authorize().
-// Only exempted when the dashboard (browserAuth) is actually mounted.
-func webPublicPath(path string) bool {
-	return path == "/" || path == "/login" || strings.HasPrefix(path, "/static/")
-}
-
 // auth is the bearer-token middleware. Missing/blank/wrong token => 401. The
 // comparison is constant-time.
 func (s *Server) auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if authExempt(r.URL.Path) || (s.browserAuth != nil && webPublicPath(r.URL.Path)) {
+		if authExempt(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -63,18 +54,8 @@ func (s *Server) auth(next http.Handler) http.Handler {
 	})
 }
 
-// authorize returns true if r carries a valid same-origin session cookie (E7
-// OD-B; CSRF-enforced for mutating methods inside the authenticator) or the
-// configured bearer token.
+// authorize returns true if r carries the configured bearer token.
 func (s *Server) authorize(r *http.Request) bool {
-	if s.browserAuth != nil && s.browserAuth.Authenticate(r) {
-		return true
-	}
-	return s.bearerAuth(r)
-}
-
-// bearerAuth returns true if r carries the configured bearer token.
-func (s *Server) bearerAuth(r *http.Request) bool {
 	const prefix = "Bearer "
 	h := r.Header.Get("Authorization")
 	if !strings.HasPrefix(h, prefix) {

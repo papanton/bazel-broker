@@ -82,15 +82,6 @@ func (d default501) Resume(w http.ResponseWriter, r *http.Request)       { d.han
 func (d default501) Drain(w http.ResponseWriter, r *http.Request)        { d.handle(w, r) }
 func (d default501) Status(w http.ResponseWriter, r *http.Request)       { d.handle(w, r) }
 
-// BrowserAuthenticator accepts a same-origin browser session (E7 OD-B). The web
-// dashboard mints an HttpOnly; SameSite=Strict session cookie from the broker's
-// 0600-config token and enforces CSRF on mutating methods; authorize() consults
-// this before the bearer check. Satisfied structurally by *web.SessionStore, so
-// httpapi does not import internal/web (keeps the dependency one-way).
-type BrowserAuthenticator interface {
-	Authenticate(r *http.Request) bool
-}
-
 // Option configures a Server at construction (the seam-injection mechanism).
 type Option func(*Server)
 
@@ -102,18 +93,6 @@ func WithMetrics(m MetricsProvider) Option { return func(s *Server) { s.metrics 
 
 // WithAdmitter injects the E5 admission handlers.
 func WithAdmitter(a Admitter) Option { return func(s *Server) { s.admitter = a } }
-
-// WithBrowserAuth injects the E7 same-origin session authenticator (OD-B).
-func WithBrowserAuth(a BrowserAuthenticator) Option {
-	return func(s *Server) { s.browserAuth = a }
-}
-
-// WithMux lets a front-end epic (E7) register additional routes on the same mux
-// the auth/log/recover middleware wraps. ServeMux longest-prefix matching keeps
-// the API routes intact; the hook only adds GET / + static/login paths.
-func WithMux(f func(*http.ServeMux)) Option {
-	return func(s *Server) { s.muxHook = f }
-}
 
 // WithVersion sets the broker build version reported by /healthz.
 func WithVersion(v string) Option {

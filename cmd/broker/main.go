@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"net"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -25,7 +24,6 @@ import (
 	"github.com/antoniospapantoniou/bazel-broker/internal/registry"
 	"github.com/antoniospapantoniou/bazel-broker/internal/store"
 	"github.com/antoniospapantoniou/bazel-broker/internal/version"
-	"github.com/antoniospapantoniou/bazel-broker/internal/web"
 )
 
 // hydrateLimit is the number of recent builds loaded from the store at boot.
@@ -96,9 +94,6 @@ func run() error {
 	engine := admission.NewEngine(policy, adAdapter)
 	admitter := admission.NewAdmitter(engine)
 
-	// E7: same-origin session store backs the web dashboard's cookie auth (OD-B).
-	sessions := web.NewSessionStore(cfg.Token)
-
 	// Always bind loopback regardless of cfg.Host (loopback-only guarantee).
 	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", cfg.Port))
 	if err != nil {
@@ -110,12 +105,6 @@ func run() error {
 		httpapi.WithKiller(killer),
 		httpapi.WithMetrics(ingest.Provider()),
 		httpapi.WithAdmitter(admitter),
-		httpapi.WithBrowserAuth(sessions),
-		httpapi.WithMux(func(mux *http.ServeMux) {
-			if err := web.RegisterRoutes(mux, web.Deps{Sessions: sessions}); err != nil {
-				log.Error("web dashboard mount failed", "err", err)
-			}
-		}),
 	)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

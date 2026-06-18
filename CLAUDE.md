@@ -121,7 +121,8 @@ scripts/verify-fast.sh            the fast verify orchestrator
   //   httpapi.WithAdmitter(admitter),
   go engine.Run(ctx, admission.NewLoadProbe(), adAdapter) // load ticker + stagger/queued GC + PID reaper + server-side release
   ```
-- **web (E7) / menubar (E8):** see their epic plans.
+- **menubar (E8):** the main UX (`apps/MenuBar/`); see its CLAUDE.md. (The E7 web
+  dashboard was removed — the menu-bar app is the sole GUI; `brokerctl` is the CLI.)
 
 ## Pitfalls baked in
 - macOS bash is **3.2** — fake-bazel avoids bash-4 features (no `${var,,}`, no assoc arrays).

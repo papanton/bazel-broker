@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# One command to run the whole thing: build, start the daemon, open the dashboard
-# pre-authenticated. Ctrl-C stops the daemon. No manual token copy/paste.
+# Run the broker daemon from source (dev convenience). Builds, starts the daemon,
+# waits for /healthz, then blocks; Ctrl-C stops it. The menu-bar app is the main
+# UX; this is for running the daemon directly during development.
 #
-# Env overrides: BAZEL_BROKER_CONFIG (config file path), BROKER_NO_OPEN=1 (don't
-# open a browser — just print the URL).
+# Env override: BAZEL_BROKER_CONFIG (config file path).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -27,15 +27,8 @@ for _ in $(seq 1 50); do
   sleep 0.2
 done
 
-TOKEN=$(/usr/bin/python3 -c "import json;print(json.load(open('$CONFIG'))['token'])" 2>/dev/null || true)
-URL="http://127.0.0.1:$PORT/"
-[ -n "$TOKEN" ] && URL="http://127.0.0.1:$PORT/#token=$TOKEN"
-
 echo "==> broker ready on 127.0.0.1:$PORT"
-echo "    dashboard: $URL"
-echo "    cli:       bin/brokerctl ls   (watch | kill <id> | drain | profile <id>)"
-if [ -z "${BROKER_NO_OPEN:-}" ] && command -v open >/dev/null 2>&1; then
-  open "$URL"
-fi
+echo "    cli:      bin/brokerctl ls   (watch | kill <id> | drain | profile <id>)"
+echo "    menu-bar: open apps/MenuBar (the main UX) — it talks to this daemon"
 echo "==> Ctrl-C to stop"
 wait "$BROKER_PID"
