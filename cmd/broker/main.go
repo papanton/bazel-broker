@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/antoniospapantoniou/bazel-broker/internal/config"
+	"github.com/antoniospapantoniou/bazel-broker/internal/discovery"
 	"github.com/antoniospapantoniou/bazel-broker/internal/httpapi"
 	"github.com/antoniospapantoniou/bazel-broker/internal/logging"
 	"github.com/antoniospapantoniou/bazel-broker/internal/registry"
@@ -69,16 +70,26 @@ func run() error {
 		log.Error("hydrate failed", "err", err)
 	}
 
+	// E3: passive process discovery (libproc) reconciles running bazel clients
+	// into the registry; the killer fronts POST /builds/{id}/kill via the seam.
+	disco := discovery.NewReconciler(discovery.NewScanner(), reg, log, discovery.DefaultInterval)
+	killer := discovery.NewKiller(reg, discovery.KillConfig{}, log, disco.ReconcileOnce)
+
 	// Always bind loopback regardless of cfg.Host (loopback-only guarantee).
 	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", cfg.Port))
 	if err != nil {
 		return fmt.Errorf("listen 127.0.0.1:%d: %w", cfg.Port, err)
 	}
 
-	srv := httpapi.New(cfg, reg, hub, log, httpapi.WithVersion(version.Version))
+	srv := httpapi.New(cfg, reg, hub, log,
+		httpapi.WithVersion(version.Version),
+		httpapi.WithKiller(killer),
+	)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	go disco.Run(ctx)
 
 	errCh := make(chan error, 1)
 	go func() {
