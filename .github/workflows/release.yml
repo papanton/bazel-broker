@@ -1,13 +1,20 @@
 name: release
 # Build universal artifacts and attach them to a GitHub Release.
-# Manual-dispatch for now: the menu-bar app needs a recent Xcode/SDK that the
-# hosted macos runner may not have, so releases are currently cut locally
-# (`make dist VERSION=x` + `gh release create`). Re-enable the tag trigger once
-# the runner's Xcode is pinned to match (uncomment below).
+# Manual-dispatch for now (the hosted macOS runner's Xcode may lag the local one;
+# re-enable the tag trigger once it's pinned). If the signing/notarization secrets
+# are present the app is Developer ID signed + notarized; otherwise it's ad-hoc.
+# Required secrets for signing+notarization (all optional — absent => ad-hoc):
+#   MACOS_CERT_P12_BASE64  base64 of the "Developer ID Application" cert (.p12)
+#   MACOS_CERT_PASSWORD    the .p12 export password
+#   KEYCHAIN_PASSWORD      any throwaway password for the temp build keychain
+#   CODESIGN_ID            "Developer ID Application: NAME (TEAMID)"
+#   APPLE_ID               Apple ID email (notarytool)
+#   APPLE_TEAM_ID          Apple Developer Team ID
+#   NOTARY_PASSWORD        app-specific password for notarytool
 on:
   workflow_dispatch:
     inputs:
-      version: { description: "version, e.g. 0.1.0", required: true }
+      version: { description: "version, e.g. 0.1.3", required: true }
   # push:
   #   tags: ["v*"]
 
@@ -19,7 +26,7 @@ jobs:
     runs-on: macos-14   # Apple Silicon; xcodebuild builds the x86_64 slice too
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }   # tags for `git describe`
+        with: { fetch-depth: 0 }
 
       - uses: actions/setup-go@v5
         with: { go-version: "1.26" }
@@ -27,12 +34,29 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
-      - name: Build universal artifacts
+      - name: Import Developer ID cert (if configured)
+        env:
+          P12: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+          P12_PW: ${{ secrets.MACOS_CERT_PASSWORD }}
+          KC_PW: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          if [ -z "$P12" ]; then echo "no signing cert secret — ad-hoc build"; exit 0; fi
+          echo "$P12" | base64 --decode > /tmp/cert.p12
+          security create-keychain -p "$KC_PW" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KC_PW" build.keychain
+          security set-keychain-settings -lut 3600 build.keychain
+          security import /tmp/cert.p12 -k build.keychain -P "$P12_PW" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KC_PW" build.keychain
+          rm -f /tmp/cert.p12
+
+      - name: Build (sign + notarize if configured)
+        env:
+          CODESIGN_ID: ${{ secrets.CODESIGN_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
         run: make dist VERSION=${{ inputs.version }}
-        # To notarize for public download, set these and add a notarize step:
-        #   CODESIGN_ID, plus notarytool creds (APPLE_ID / TEAM_ID / app-specific pw).
-        # env:
-        #   CODESIGN_ID: "Developer ID Application: Your Name (TEAMID)"
 
       - name: Publish release
         run: |
@@ -42,3 +66,7 @@ jobs:
           (cd dist && shasum -a 256 *) >> "$GITHUB_STEP_SUMMARY"
         env:
           GH_TOKEN: ${{ github.token }}
+
+      - name: Clean up keychain
+        if: always()
+        run: security delete-keychain build.keychain 2>/dev/null || true
