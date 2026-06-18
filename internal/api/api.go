@@ -38,6 +38,7 @@ type Build struct {
 	InvocationID string   `json:"invocation_id"`           // primary key everywhere; NOT "id"
 	Worktree     string   `json:"worktree"`                // absolute path
 	WorktreeName string   `json:"worktree_name,omitempty"` // display basename (E3 fills)
+	Command      string   `json:"command,omitempty"`       // bazel verb: build|run|test|… (E4 fills)
 	Targets      []string `json:"targets"`                 // always present; [] not null
 	PID          int      `json:"pid"`
 	State        string   `json:"state"`              // see State* consts

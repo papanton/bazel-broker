@@ -55,6 +55,8 @@ type stream struct {
 
 	// per-build accumulation
 	row        *metrics.Row
+	command    string // bazel verb from BuildStarted (build|run|test|…)
+	patterns   []string // target patterns from the pattern-expanded event
 	rawMetrics string
 	bound      bool // BuildStarted.uuid seen → row.InvocationID set + stub registered
 	finalized  bool
@@ -100,6 +102,7 @@ func (s *stream) dispatch(ev *bes.BuildEvent) {
 	case *bes.BuildEvent_Started:
 		st := p.Started
 		s.row.InvocationID = st.GetUuid()
+		s.command = st.GetCommand() // build|run|test|coverage|… (display)
 		if ts := st.GetStartTime(); ts != nil {
 			s.row.StartedAt = ts.AsTime().UnixMilli()
 		} else if ms := st.GetStartTimeMillis(); ms != 0 {
@@ -138,10 +141,34 @@ func (s *stream) dispatch(ev *bes.BuildEvent) {
 		}
 	}
 
+	// Target patterns (e.g. ["//:slow"], ["//..."]) ride the pattern-expanded
+	// event's id; capture them and push command+targets to the registry so the
+	// row shows WHAT is building, not just where.
+	if pat := ev.GetId().GetPattern().GetPattern(); len(pat) > 0 {
+		s.patterns = pat
+		s.pushCommandTargets()
+	}
+
 	// last_message is BEP's authoritative end-of-stream marker.
 	if ev.GetLastMessage() {
 		s.finalize()
 	}
+}
+
+// pushCommandTargets enriches the registry build with the bazel command + target
+// patterns once the invocation id is known. Idempotent (merge upsert).
+func (s *stream) pushCommandTargets() {
+	if !s.bound || s.reg == nil || s.row.InvocationID == "" {
+		return
+	}
+	if s.command == "" && len(s.patterns) == 0 {
+		return
+	}
+	_, _ = s.reg.Upsert(&build.Build{
+		InvocationID: s.row.InvocationID,
+		Command:      s.command,
+		Targets:      s.patterns,
+	})
 }
 
 // bindBuild stamps a stub build row (so the metrics FK is satisfiable) once the
@@ -158,12 +185,15 @@ func (s *stream) bindBuild() {
 			_, _ = s.reg.Upsert(&build.Build{
 				InvocationID: s.row.InvocationID,
 				Worktree:     s.row.Worktree,
+				Command:      s.command,
 				State:        build.StateRunning,
 				Source:       build.SourceDiscovered,
 				StartTime:    time.Now().UTC(),
 			})
 		}
 	}
+	// Command is known at Started (before the pattern event); surface it now.
+	s.pushCommandTargets()
 }
 
 // finalize persists the metrics row, computes the low-hit alert, and enriches the

@@ -313,6 +313,9 @@ func (r *Registry) Upsert(b *build.Build) (*build.Build, error) {
 	if b.WorktreeName != "" {
 		stored.WorktreeName = b.WorktreeName
 	}
+	if b.Command != "" {
+		stored.Command = b.Command
+	}
 	if len(b.Targets) > 0 && stored.Source != build.SourceRegistered {
 		stored.Targets = b.Targets
 	}

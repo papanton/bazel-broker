@@ -42,9 +42,15 @@ rsync -a --exclude 'bazel-*' --exclude '.git' "$SRC/" "$BASE/ws/"
 ( cd "$BASE/ws" && git init -q && git config user.email l@l && git config user.name loadtest && git add -A && git commit -qm base )
 
 echo "==> firing $N concurrent //:slow builds at ${SECS}s each"
+CACHE="$HOME/.cache/bazel-broker/loadtest-cache"
 for i in $(seq 1 "$N"); do
   wt="wt-$i"; path="$BASE/$wt"
   git -C "$BASE/ws" worktree add --detach "$path" HEAD >/dev/null 2>&1
+  # Apply E1 cache config so the build emits BEP at the path the broker tails —
+  # that's what lets the broker show the command + targets + cache% (not just a
+  # discovered process). Without it you'd only get worktree + elapsed.
+  BAZEL_BROKER_CACHE="$CACHE" BROKER_DISK_CACHE="$CACHE" \
+    bash "$REPO/cache-config/setup.sh" "$path" >/dev/null 2>&1
   ( cd "$path" && nohup "$BZL" build //:slow --action_env=SLOW_SECS="$SECS" \
       >"/tmp/bb-loadtest-$wt.log" 2>&1 & )
   echo "    $wt -> sleeping ${SECS}s"

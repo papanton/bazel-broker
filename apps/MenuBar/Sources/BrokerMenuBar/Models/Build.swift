@@ -14,6 +14,7 @@ struct Build: Codable, Identifiable, Hashable {
     let invocationID: String
     let worktree: String
     let worktreeName: String?
+    let command: String?
     let targets: [String]
     let pid: Int
     let state: BuildState
@@ -27,12 +28,14 @@ struct Build: Codable, Identifiable, Hashable {
 
     var id: String { invocationID }
 
-    init(invocationID: String, worktree: String, worktreeName: String?, targets: [String],
-         pid: Int, state: BuildState, startTime: Date, endTime: Date?, exitCode: Int,
-         source: BuildSource, elapsedMS: Int64, cacheHitRatio: Double?, profileURL: String?) {
+    init(invocationID: String, worktree: String, worktreeName: String?, command: String? = nil,
+         targets: [String], pid: Int, state: BuildState, startTime: Date, endTime: Date?,
+         exitCode: Int, source: BuildSource, elapsedMS: Int64, cacheHitRatio: Double?,
+         profileURL: String?) {
         self.invocationID = invocationID
         self.worktree = worktree
         self.worktreeName = worktreeName
+        self.command = command
         self.targets = targets
         self.pid = pid
         self.state = state
@@ -49,6 +52,7 @@ struct Build: Codable, Identifiable, Hashable {
         case invocationID = "invocation_id"
         case worktree
         case worktreeName = "worktree_name"
+        case command
         case targets
         case pid
         case state
@@ -71,6 +75,14 @@ struct Build: Codable, Identifiable, Hashable {
 
     /// A build still under the daemon's control — the only state where killing makes sense.
     var isActive: Bool { state == .running || state == .queued }
+
+    /// "build //:slow" — the bazel verb + its target patterns, when the broker has
+    /// learned them from the BEP stream. nil when neither is known yet.
+    var commandLabel: String? {
+        let verb = (command?.isEmpty == false) ? command : nil
+        if verb == nil && targets.isEmpty { return nil }
+        return ([verb].compactMap { $0 } + targets).joined(separator: " ")
+    }
 }
 
 /// Mirrors the `State*` consts in `internal/api/api.go`. The decoder maps any

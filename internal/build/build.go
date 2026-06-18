@@ -55,6 +55,7 @@ type Build struct {
 	InvocationID string   // Bazel invocation_id (uuid). Primary key. Required.
 	Worktree     string   // absolute path of the git worktree (build cwd)
 	WorktreeName string   // last path component (display); E3 fills, "" until then
+	Command      string   // bazel command verb: build|run|test|… (E4 from BuildStarted)
 	Targets      []string // bazel targets/patterns, e.g. ["//app:App"]
 	PID          int      // bazel CLIENT pid (0 if unknown at register time)
 	State        State
@@ -91,6 +92,7 @@ func (b Build) ToAPI(now time.Time) api.Build {
 		InvocationID: b.InvocationID,
 		Worktree:     b.Worktree,
 		WorktreeName: b.WorktreeName,
+		Command:      b.Command,
 		Targets:      b.Targets,
 		PID:          b.PID,
 		State:        string(b.State),

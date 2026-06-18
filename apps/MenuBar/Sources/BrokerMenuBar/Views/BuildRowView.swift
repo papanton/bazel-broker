@@ -16,16 +16,11 @@ struct BuildRowView: View {
                 Text(build.displayName)
                     .font(.headline)
                     .accessibilityIdentifier("build-name-\(build.invocationID)")
-                // Secondary line: the targets being built, or — for a discovered build
-                // with no known targets — the worktree path so the name has context.
-                if !build.targets.isEmpty {
-                    Text(build.targets.joined(separator: " "))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                } else {
-                    Text(build.worktree)
+                // Secondary line: WHAT is building — the bazel command + targets
+                // (e.g. "build //:slow"). The worktree path is in the row tooltip,
+                // so we don't repeat the worktree name that's already the headline.
+                if let label = build.commandLabel {
+                    Text(label)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
