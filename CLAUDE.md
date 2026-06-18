@@ -104,7 +104,23 @@ scripts/verify-fast.sh            the fast verify orchestrator
 - **discovery/kill (E3):** launch fake-bazel long; `brokerctl ls`; `brokerctl kill <id>`.
   Broker's kill path must use SIGTERM / process-group SIGINT, not a bare `kill -INT <pid>`.
 - **BEP/metrics (E4):** point ingest at a BEP json; `brokerctl metrics <id>`.
-- **admission (E5):** start 3 fake builds with `max_concurrency=2`; the 3rd queues.
+- **admission (E5):** `make admission-verify` (race; engine + `tools/bazel` wrapper, no daemon).
+  Headline DoD: start 3 fake builds via `tools/bazel` with `MaxConcurrent=2` → the 3rd QUEUEs,
+  then admits when one finishes (slot freed **server-side**, no wrapper trap). `POST /admission`
+  returns a **status code + one-word body** (`200 ALLOW`/`202 QUEUE`/`403 DENY`), never JSON (C5);
+  the wrapper **fails open** on any non-200/202/403 or unreachable broker. `BROKER_BYPASS=1`/`CI`/
+  non-build verbs skip the gate. Engine: `internal/admission` (FIFO + Semaphore→TokenBucket→Stagger,
+  cap-1 buffered verdict, PID reaper). **main.go wiring** (the orchestrator applies this — E5 does
+  NOT edit main.go/httpapi):
+  ```go
+  // after reg/hub/disco are built, before httpapi.New:
+  adAdapter := admission.NewRegistryAdapter(reg, hub)
+  engine := admission.NewEngine(admission.DefaultPolicy(), adAdapter) // policy from cfg if desired
+  admitter := admission.NewAdmitter(engine)
+  // ...then add the option to httpapi.New(...):
+  //   httpapi.WithAdmitter(admitter),
+  go engine.Run(ctx, admission.NewLoadProbe(), adAdapter) // load ticker + stagger/queued GC + PID reaper + server-side release
+  ```
 - **web (E7) / menubar (E8):** see their epic plans.
 
 ## Pitfalls baked in

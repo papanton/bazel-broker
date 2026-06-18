@@ -34,6 +34,37 @@ vet:  ; go vet ./...
 test: ; go test ./...
 tidy: ; go mod tidy
 
+# E4: regenerate Bazel BEP Go types from the vendored, pinned (Bazel 8.3.1) protos
+# under third_party/bazel_protos/. The generated *.pb.go ARE committed, so this is
+# only re-run on a Bazel version bump. Requires protoc + protoc-gen-go on PATH
+# (go install google.golang.org/protobuf/cmd/protoc-gen-go).
+PROTO_ROOT := third_party/bazel_protos
+GENPROTO   := $(MODULE)/internal/genproto
+BES_PROTO  := src/main/java/com/google/devtools/build/lib/buildeventstream/proto/build_event_stream.proto
+.PHONY: protos
+protos:                                 ## regenerate internal/genproto from vendored Bazel protos
+	protoc -I "$(PROTO_ROOT)" \
+	  --go_out=internal/genproto --go_opt=module="$(GENPROTO)" \
+	  --go_opt=M$(BES_PROTO)="$(GENPROTO)/buildeventstream" \
+	  --go_opt=Msrc/main/java/com/google/devtools/build/lib/packages/metrics/package_load_metrics.proto="$(GENPROTO)/packagemetrics" \
+	  --go_opt=Msrc/main/protobuf/command_line.proto="$(GENPROTO)/commandline" \
+	  --go_opt=Msrc/main/protobuf/option_filters.proto="$(GENPROTO)/optionfilters" \
+	  --go_opt=Msrc/main/protobuf/invocation_policy.proto="$(GENPROTO)/invocationpolicy" \
+	  --go_opt=Msrc/main/protobuf/strategy_policy.proto="$(GENPROTO)/strategypolicy" \
+	  --go_opt=Msrc/main/protobuf/action_cache.proto="$(GENPROTO)/actioncache" \
+	  --go_opt=Msrc/main/protobuf/failure_details.proto="$(GENPROTO)/failuredetails" \
+	  $(BES_PROTO) \
+	  src/main/java/com/google/devtools/build/lib/packages/metrics/package_load_metrics.proto \
+	  src/main/protobuf/command_line.proto src/main/protobuf/option_filters.proto \
+	  src/main/protobuf/invocation_policy.proto src/main/protobuf/strategy_policy.proto \
+	  src/main/protobuf/action_cache.proto src/main/protobuf/failure_details.proto
+	gofmt -w internal/genproto
+	go build ./internal/genproto/...
+
+.PHONY: verify-e4
+verify-e4: build                        ## E4: real-fixture cache-hit + truncation + provider tests
+	go test ./internal/bep/... ./internal/metrics/... ./internal/store/...
+
 .PHONY: verify-fast
 verify-fast: build                      ## headless ~3s sanity: build + unit tests + fake-bazel + daemon smoke
 	go test ./...
@@ -67,6 +98,10 @@ smoke: $(BROKER_BIN)                    ## start broker, run the register->ls->d
 .PHONY: verify-brokerctl
 verify-brokerctl:                       ## brokerctl unit tests (scoped; no broker needed)
 	go test ./cmd/brokerctl/... ./internal/cli/... ./internal/apiclient/...
+
+.PHONY: admission-verify
+admission-verify:                       ## E5: admission engine + tools/bazel wrapper (race; no daemon needed)
+	go test -race ./internal/admission/...
 
 .PHONY: clean
 clean: ; rm -rf $(BIN_DIR)

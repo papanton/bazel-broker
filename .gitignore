@@ -30,3 +30,6 @@ broker.json
 /apps/MenuBar/build/
 /apps/MenuBar/DerivedData/
 /apps/MenuBar/docs/screen-*.png
+
+# Stray throwaway harness binaries
+*harness
