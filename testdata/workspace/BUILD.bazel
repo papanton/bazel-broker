@@ -10,3 +10,20 @@ genrule(
     outs = ["gen.txt"],
     cmd = "echo hello-from-bazel > $@",  # a trivial native action that exercises the action/disk cache
 )
+
+# A deterministically SLOW build for exercising the broker (live trace, kill,
+# admission queueing) without needing real heavy compiles. Sleeps $SLOW_SECS
+# (default 120s), then writes its output. Override the duration per invocation:
+#   bazelisk build //:slow --action_env=SLOW_SECS=300
+# $$ escapes to a literal $ in a genrule cmd (Make-style) so the *shell* sees the
+# ${...} default-expansion. no-cache/no-remote keep it from being cached away.
+genrule(
+    name = "slow",
+    outs = ["slow.txt"],
+    cmd = "echo \"sleeping $${SLOW_SECS:-120}s\"; sleep \"$${SLOW_SECS:-120}\"; date > $@",
+    tags = [
+        "no-cache",
+        "no-remote",
+        "local",
+    ],
+)
