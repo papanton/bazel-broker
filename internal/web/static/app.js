@@ -311,10 +311,26 @@ async function start() {
   connect();
 }
 
+// fragmentToken reads a one-shot token from the URL fragment (#token=...) used by
+// `brokerctl dashboard` / `make up` to open the page pre-authenticated. The fragment
+// is never sent to the server (so it is not logged); we consume it then strip it
+// from the address bar before doing anything else.
+function fragmentToken() {
+  const m = /(?:^|[#&])token=([^&]+)/.exec(location.hash);
+  if (!m) return "";
+  history.replaceState(null, "", location.pathname + location.search);
+  return decodeURIComponent(m[1]);
+}
+
 (async function boot() {
   if (await checkSession()) {
     start();
-  } else {
-    showLogin();
+    return;
   }
+  const t = fragmentToken();
+  if (t && (await login(t))) {
+    start();
+    return;
+  }
+  showLogin();
 })();

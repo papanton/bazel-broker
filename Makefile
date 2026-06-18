@@ -24,6 +24,10 @@ $(BROKERCTL_BIN): $(shell find cmd/brokerctl internal -name '*.go' 2>/dev/null) 
 	@mkdir -p $(BIN_DIR)
 	go build -ldflags '$(LDFLAGS)' -o $(BROKERCTL_BIN) ./cmd/brokerctl
 
+.PHONY: up
+up:                                     ## build, run the daemon, and open the dashboard (one command; Ctrl-C stops)
+	@scripts/up.sh
+
 .PHONY: run-broker
 run-broker: $(BROKER_BIN)               ## run the daemon in the foreground (Ctrl-C to stop)
 	$(BROKER_BIN)
