@@ -129,7 +129,9 @@ func TestReservedRoutesReturn501(t *testing.T) {
 		{"GET", "/builds/abc/metrics"},
 		{"GET", "/builds/abc/profile"},
 		{"GET", "/metrics"},
-		{"GET", "/profile/abc/foo.gz"},
+		// NOTE: GET /profile/{id}/{name} is intentionally OMITTED here — OD-C makes it
+		// token-EXEMPT (Perfetto fetches it cross-origin without the bearer). Its
+		// exemption is asserted separately in TestProfileRouteTokenExemptOD_C.
 		{"GET", "/diskcache"},
 		{"POST", "/admission"},
 		{"POST", "/admission/release"},
@@ -156,6 +158,22 @@ func TestReservedRoutesReturn501(t *testing.T) {
 		if e.Error != "not_implemented" || e.Epic == "" {
 			t.Errorf("%s %s 501 body = %+v", tc.method, tc.path, e)
 		}
+	}
+}
+
+// TestProfileRouteTokenExemptOD_C asserts the OD-C exemption: GET /profile/{id}/{name}
+// is reachable WITHOUT a bearer token (Perfetto fetches it cross-origin and cannot
+// present the token). With the default 501 stub it returns 501 — not 401 — proving
+// auth did not block it. (E4's real handler serves the .gz / shim there.)
+func TestProfileRouteTokenExemptOD_C(t *testing.T) {
+	srv, _ := newTestServer(t)
+	rec := httptest.NewRecorder()
+	srv.Routes().ServeHTTP(rec, httptest.NewRequest("GET", "/profile/abc/foo.gz", nil))
+	if rec.Code == 401 {
+		t.Fatalf("/profile/{id}/{name} must be token-exempt (OD-C), got 401")
+	}
+	if rec.Code != 501 {
+		t.Errorf("no-token /profile reached the stub = %d, want 501 (auth-exempt)", rec.Code)
 	}
 }
 

@@ -16,6 +16,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -26,8 +27,40 @@ import (
 //go:embed schema.sql
 var schemaSQL string
 
-// schemaVersion is the user_version this build understands.
-const schemaVersion = 1
+//go:embed schema_v2.sql
+var schemaV2SQL string
+
+// addColumnsV2 are the ALTER TABLE metrics ADD COLUMN statements for schema v2.
+// They run idempotently: a "duplicate column name" error is tolerated so the
+// migration can re-run on an already-v2 DB without a version gate per column.
+var addColumnsV2 = []string{
+	`ALTER TABLE metrics ADD COLUMN worktree           TEXT`,
+	`ALTER TABLE metrics ADD COLUMN started_at         INTEGER`,
+	`ALTER TABLE metrics ADD COLUMN finished_at        INTEGER`,
+	`ALTER TABLE metrics ADD COLUMN exit_code          INTEGER`,
+	`ALTER TABLE metrics ADD COLUMN success            INTEGER`,
+	`ALTER TABLE metrics ADD COLUMN actions_executed   INTEGER`,
+	`ALTER TABLE metrics ADD COLUMN disk_cache_hits    INTEGER`,
+	`ALTER TABLE metrics ADD COLUMN remote_cache_hits  INTEGER`,
+	`ALTER TABLE metrics ADD COLUMN executed_runners   INTEGER`,
+	`ALTER TABLE metrics ADD COLUMN processes_total    INTEGER`,
+	`ALTER TABLE metrics ADD COLUMN cpu_time_ms        INTEGER`,
+	`ALTER TABLE metrics ADD COLUMN analysis_ms        INTEGER`,
+	`ALTER TABLE metrics ADD COLUMN execution_ms       INTEGER`,
+	`ALTER TABLE metrics ADD COLUMN targets_configured INTEGER`,
+	`ALTER TABLE metrics ADD COLUMN packages_loaded    INTEGER`,
+	`ALTER TABLE metrics ADD COLUMN peak_heap_bytes    INTEGER`,
+	`ALTER TABLE metrics ADD COLUMN tests_total        INTEGER`,
+	`ALTER TABLE metrics ADD COLUMN tests_failed       INTEGER`,
+	`ALTER TABLE metrics ADD COLUMN summary_line       TEXT`,
+	`ALTER TABLE metrics ADD COLUMN profile_path       TEXT`,
+	`ALTER TABLE metrics ADD COLUMN bep_path           TEXT`,
+	`ALTER TABLE metrics ADD COLUMN alert              TEXT`,
+}
+
+// schemaVersion is the user_version this build understands. E4 bumps to 2:
+// E2 stamped 1 and reserved the empty `metrics` table; v2 populates it.
+const schemaVersion = 2
 
 // dsnFmt configures WAL + a 5s busy timeout + foreign keys.
 const dsnFmt = "file:%s?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(ON)"
@@ -61,7 +94,9 @@ func Open(path string, log *slog.Logger) (*Store, error) {
 	return s, nil
 }
 
-// migrate stamps schema v1 if the DB is fresh (user_version == 0).
+// migrate brings the DB up to schemaVersion. v1 stamps the base schema on a fresh
+// DB; v2 (E4) extends the reserved `metrics` table with ADD COLUMN and adds the
+// runner-count / mnemonic / disk-cache-report tables. Each step is idempotent.
 func (s *Store) migrate() error {
 	var v int
 	if err := s.db.QueryRow("PRAGMA user_version").Scan(&v); err != nil {
@@ -70,11 +105,39 @@ func (s *Store) migrate() error {
 	if v >= schemaVersion {
 		return nil
 	}
-	if _, err := s.db.Exec(schemaSQL); err != nil {
-		return fmt.Errorf("apply schema v%d: %w", schemaVersion, err)
+	if v < 1 {
+		if _, err := s.db.Exec(schemaSQL); err != nil {
+			return fmt.Errorf("apply schema v1: %w", err)
+		}
+	}
+	if v < 2 {
+		if err := s.migrateV2(); err != nil {
+			return err
+		}
+	}
+	if _, err := s.db.Exec(fmt.Sprintf("PRAGMA user_version = %d", schemaVersion)); err != nil {
+		return fmt.Errorf("stamp user_version: %w", err)
 	}
 	s.log.Info("store migrated", "user_version", schemaVersion)
 	return nil
+}
+
+// migrateV2 adds the E4 columns + tables. ADD COLUMN failures are tolerated only
+// when the column already exists (re-run safety); any other error propagates.
+func (s *Store) migrateV2() error {
+	for _, stmt := range addColumnsV2 {
+		if _, err := s.db.Exec(stmt); err != nil && !isDupColumn(err) {
+			return fmt.Errorf("v2 add column (%s): %w", stmt, err)
+		}
+	}
+	if _, err := s.db.Exec(schemaV2SQL); err != nil {
+		return fmt.Errorf("apply schema v2 tables: %w", err)
+	}
+	return nil
+}
+
+func isDupColumn(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "duplicate column name")
 }
 
 // Close releases the underlying handle.

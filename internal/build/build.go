@@ -68,6 +68,10 @@ type Build struct {
 	Cwd      string    // E3: PROC_PIDVNODEPATHINFO — worktree resolution input
 	GitDir   string    // E3: resolved .git dir — output-base lookup for D4 Cancel
 	LastSeen time.Time // E3: last reconcile pass that saw this PID (reap/staleness)
+
+	// ---- E4 enrichment (BEP metrics; serialized to api.Build) ----
+	CacheHitRatio *float64 // disk-cache hit ratio 0..1 from runner_count[] (nil until BEP metrics land)
+	ProfileURL    string   // ready-to-open Perfetto shim URL (E4)
 }
 
 // Elapsed returns wall time, ending at EndTime if terminal else at now.
@@ -99,6 +103,7 @@ func (b Build) ToAPI(now time.Time) api.Build {
 	if out.Targets == nil {
 		out.Targets = []string{} // always present; [] not null
 	}
-	// CacheHitRatio / ProfileURL are left zero here; E4 fills them.
+	out.CacheHitRatio = b.CacheHitRatio // E4 enrichment; nil → omitted
+	out.ProfileURL = b.ProfileURL       // E4 enrichment; "" → omitted
 	return out
 }

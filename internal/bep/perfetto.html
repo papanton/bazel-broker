@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bazel Broker — open profile in Perfetto</title>
+<style>
+  body { font: 14px -apple-system, system-ui, sans-serif; margin: 3rem; color: #222; }
+  #status { margin-top: 1rem; color: #555; }
+  a { color: #1a73e8; }
+  .err { color: #c5221f; }
+</style>
+</head>
+<body>
+<h2>Opening Bazel critical-path profile in Perfetto…</h2>
+<div id="status">Fetching trace…</div>
+<noscript>This page requires JavaScript to push the trace to ui.perfetto.dev.</noscript>
+<script>
+// Perfetto postMessage handoff (OD-C / D-E4-6). ui.perfetto.dev's ?url= deep-link
+// requires HTTPS and cannot fetch http://127.0.0.1, so we instead fetch the .gz
+// SAME-ORIGIN from the broker (no bearer needed, no CORS), open ui.perfetto.dev,
+// wait for its PING handshake, then postMessage the trace bytes (ArrayBuffer).
+const PROFILE_URL = {{.ProfileURL}};   // same-origin /profile/{id}/{name}
+const TITLE = {{.Title}};
+const ORIGIN = 'https://ui.perfetto.dev';
+const statusEl = document.getElementById('status');
+
+function setStatus(msg, isErr) {
+  statusEl.textContent = msg;
+  statusEl.className = isErr ? 'err' : '';
+}
+
+async function main() {
+  let buf;
+  try {
+    const resp = await fetch(PROFILE_URL);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    buf = await resp.arrayBuffer();
+  } catch (e) {
+    setStatus('Could not fetch the profile from the broker: ' + e.message, true);
+    return;
+  }
+
+  const win = window.open(ORIGIN);
+  if (!win) {
+    setStatus('Popup blocked. Allow popups for this page, then reload.', true);
+    return;
+  }
+
+  // Perfetto posts {perfetto:{ping}} repeatedly until it is ready; reply with the
+  // trace once we see it. Also retry PING -> open_trace as a fallback.
+  let opened = false;
+  const onMessage = (evt) => {
+    if (evt.origin !== ORIGIN) return;
+    if (opened) return;
+    opened = true;
+    win.postMessage({ perfetto: { buffer: buf, title: TITLE, url: PROFILE_URL } }, ORIGIN);
+    setStatus('Trace handed off to Perfetto. You can close this tab.');
+  };
+  window.addEventListener('message', onMessage);
+
+  // Some Perfetto versions expect us to PING first; nudge it a few times.
+  let tries = 0;
+  const timer = setInterval(() => {
+    if (opened || tries++ > 30) { clearInterval(timer); return; }
+    try { win.postMessage('PING', ORIGIN); } catch (_) {}
+  }, 250);
+}
+main();
+</script>
+</body>
+</html>

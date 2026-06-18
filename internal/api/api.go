@@ -132,6 +132,19 @@ type Event struct {
 	Build  *Build    `json:"build,omitempty"`  // set for type=="build"
 	Builds []Build   `json:"builds,omitempty"` // set for type=="snapshot"
 	Ts     string    `json:"ts"`               // RFC3339 UTC emit time
+
+	// ---- additive E4 payloads (omitted for the frozen snapshot/build types) ----
+	// These ride alongside the reserved EventMetrics/EventAlert discriminators and
+	// are omitempty so they never appear on a snapshot/build frame (contract-safe).
+	Metrics any         `json:"metrics,omitempty"` // set for type=="metrics" (E4 metrics JSON)
+	Alert   *AlertEvent `json:"alert,omitempty"`   // set for type=="alert" (E4 low-hit alert)
+}
+
+// AlertEvent is the payload of a WS "alert" event (E4, reserved/additive).
+type AlertEvent struct {
+	InvocationID string `json:"invocation_id"`
+	Worktree     string `json:"worktree,omitempty"`
+	Alert        string `json:"alert"` // "low_cache_hit" | "cache_busting_suspected"
 }
 
 // ---- E3/E4 response bodies declared here so the shapes are frozen early ----

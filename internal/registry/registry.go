@@ -231,6 +231,20 @@ func (r *Registry) persist(b *build.Build) {
 	}
 }
 
+// Broadcast emits an arbitrary api.Event to all WS clients, stamping the
+// per-registry seq. Used by E4 for the additive `metrics`/`alert` event types
+// (the frozen snapshot/build flow uses broadcastBuild). No-op if no hub.
+func (r *Registry) Broadcast(ev api.Event) {
+	if r.hub == nil {
+		return
+	}
+	ev.Seq = r.seq.Add(1)
+	if ev.Ts == "" {
+		ev.Ts = api.FormatTime(r.now())
+	}
+	r.hub.Broadcast(ev)
+}
+
 // broadcastBuild emits a "build" event for b. Called after the write-lock is
 // released so a slow WS consumer cannot stall a mutation.
 func (r *Registry) broadcastBuild(b *build.Build, now time.Time) {
@@ -303,6 +317,14 @@ func (r *Registry) Upsert(b *build.Build) (*build.Build, error) {
 	}
 	if b.GitDir != "" {
 		stored.GitDir = b.GitDir
+	}
+	// E4 enrichment: BEP metrics arrive after a build may already be terminal, so
+	// these merge regardless of state and never downgrade an existing value.
+	if b.CacheHitRatio != nil {
+		stored.CacheHitRatio = b.CacheHitRatio
+	}
+	if b.ProfileURL != "" {
+		stored.ProfileURL = b.ProfileURL
 	}
 	stored.LastSeen = now
 	snapshot := *stored

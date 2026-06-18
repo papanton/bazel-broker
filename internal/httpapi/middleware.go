@@ -27,7 +27,15 @@ const defaultVersion = "0.1.0"
 // SEAM (browser auth, E7 OD-1): a same-origin cookie acceptance path would be
 // added to authorize(...) below behind an authMode switch — E2 ships bearer-only.
 func authExempt(path string) bool {
-	return path == "/healthz"
+	if path == "/healthz" {
+		return true
+	}
+	// OD-C (E4): the read-only, id-addressed Perfetto profile routes are token-exempt
+	// because ui.perfetto.dev fetches them cross-origin and cannot present the bearer
+	// token. CORS is Origin-restricted to https://ui.perfetto.dev inside the E4
+	// ProfileFile handler. This covers GET /profile/{id}/{name} (the .gz + the
+	// postMessage shim page). GET /builds/{id}/profile (the JSON ref) stays guarded.
+	return strings.HasPrefix(path, "/profile/")
 }
 
 // auth is the bearer-token middleware. Missing/blank/wrong token => 401. The
