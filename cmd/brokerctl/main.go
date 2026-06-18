@@ -12,8 +12,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/cli"
-	"github.com/antoniospapantoniou/bazel-broker/internal/version"
+	"github.com/papanton/bazel-broker/internal/cli"
+	"github.com/papanton/bazel-broker/internal/version"
 )
 
 func main() {

@@ -3,7 +3,7 @@ package httpapi
 import (
 	"net/http"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/api"
+	"github.com/papanton/bazel-broker/internal/api"
 )
 
 // This file defines the EXTENSION SEAMS that later epics implement. The Server

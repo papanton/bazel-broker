@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/build"
-	"github.com/antoniospapantoniou/bazel-broker/internal/registry"
+	"github.com/papanton/bazel-broker/internal/build"
+	"github.com/papanton/bazel-broker/internal/registry"
 )
 
 // fakeScanner returns a fixed set of ProcInfo (no syscalls), so reconcile is testable

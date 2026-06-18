@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/config"
+	"github.com/papanton/bazel-broker/internal/config"
 )
 
 // GlobalOpts carries the resolved persistent (root) flags. Each command turns it

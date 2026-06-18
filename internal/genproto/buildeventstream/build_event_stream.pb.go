@@ -23,11 +23,11 @@
 package buildeventstream
 
 import (
-	actioncache "github.com/antoniospapantoniou/bazel-broker/internal/genproto/actioncache"
-	commandline "github.com/antoniospapantoniou/bazel-broker/internal/genproto/commandline"
-	failuredetails "github.com/antoniospapantoniou/bazel-broker/internal/genproto/failuredetails"
-	invocationpolicy "github.com/antoniospapantoniou/bazel-broker/internal/genproto/invocationpolicy"
-	packagemetrics "github.com/antoniospapantoniou/bazel-broker/internal/genproto/packagemetrics"
+	actioncache "github.com/papanton/bazel-broker/internal/genproto/actioncache"
+	commandline "github.com/papanton/bazel-broker/internal/genproto/commandline"
+	failuredetails "github.com/papanton/bazel-broker/internal/genproto/failuredetails"
+	invocationpolicy "github.com/papanton/bazel-broker/internal/genproto/invocationpolicy"
+	packagemetrics "github.com/papanton/bazel-broker/internal/genproto/packagemetrics"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	anypb "google.golang.org/protobuf/types/known/anypb"

@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/build"
-	"github.com/antoniospapantoniou/bazel-broker/internal/store"
+	"github.com/papanton/bazel-broker/internal/build"
+	"github.com/papanton/bazel-broker/internal/store"
 )
 
 // TestRealFixtureEndToEnd drives the REAL warm-iOS BEP through the full ingest

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/api"
-	"github.com/antoniospapantoniou/bazel-broker/internal/build"
+	"github.com/papanton/bazel-broker/internal/api"
+	"github.com/papanton/bazel-broker/internal/build"
 )
 
 // defaultVersion is reported by /healthz when no WithVersion option is supplied

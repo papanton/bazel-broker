@@ -12,7 +12,7 @@ import (
 
 	"github.com/nxadm/tail"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/metrics"
+	"github.com/papanton/bazel-broker/internal/metrics"
 )
 
 // pollInterval is how often the truncation supervisor stats the file. Bazel

@@ -21,7 +21,7 @@
 package commandline
 
 import (
-	optionfilters "github.com/antoniospapantoniou/bazel-broker/internal/genproto/optionfilters"
+	optionfilters "github.com/papanton/bazel-broker/internal/genproto/optionfilters"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"

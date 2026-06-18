@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/api"
+	"github.com/papanton/bazel-broker/internal/api"
 )
 
 func TestRenderBuildsTable_Empty(t *testing.T) {

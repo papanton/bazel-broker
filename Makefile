@@ -1,6 +1,6 @@
 # Bazel Broker — build & verify entrypoints. See CLAUDE.md for per-component recipes.
 SHELL          := /usr/bin/env bash
-MODULE         := github.com/antoniospapantoniou/bazel-broker
+MODULE         := github.com/papanton/bazel-broker
 BIN_DIR        := bin
 BROKER_BIN     := $(BIN_DIR)/broker
 BROKERCTL_BIN  := $(BIN_DIR)/brokerctl

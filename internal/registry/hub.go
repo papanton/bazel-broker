@@ -3,7 +3,7 @@ package registry
 import (
 	"sync"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/api"
+	"github.com/papanton/bazel-broker/internal/api"
 )
 
 // subBufferSize is the per-subscriber buffer. A subscriber whose buffer fills

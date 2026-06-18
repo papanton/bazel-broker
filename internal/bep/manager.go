@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/build"
-	"github.com/antoniospapantoniou/bazel-broker/internal/metrics"
+	"github.com/papanton/bazel-broker/internal/build"
+	"github.com/papanton/bazel-broker/internal/metrics"
 )
 
 // bepRelPath is the E1-locked per-worktree, relative BEP file (C7). The supervisor

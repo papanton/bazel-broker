@@ -15,7 +15,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/api"
+	"github.com/papanton/bazel-broker/internal/api"
 )
 
 // TestApplyEvent_SnapshotThenBuild asserts snapshot replaces the map and a build

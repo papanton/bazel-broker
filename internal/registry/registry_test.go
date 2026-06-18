@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/api"
-	"github.com/antoniospapantoniou/bazel-broker/internal/build"
-	"github.com/antoniospapantoniou/bazel-broker/internal/store"
+	"github.com/papanton/bazel-broker/internal/api"
+	"github.com/papanton/bazel-broker/internal/build"
+	"github.com/papanton/bazel-broker/internal/store"
 )
 
 func newReg(t *testing.T) (*Registry, *Hub) {

@@ -4,9 +4,9 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/api"
-	"github.com/antoniospapantoniou/bazel-broker/internal/build"
-	"github.com/antoniospapantoniou/bazel-broker/internal/registry"
+	"github.com/papanton/bazel-broker/internal/api"
+	"github.com/papanton/bazel-broker/internal/build"
+	"github.com/papanton/bazel-broker/internal/registry"
 )
 
 // RegistryAdapter bridges *registry.Registry to the engine's RegistryReader and

@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/cli"
+	"github.com/papanton/bazel-broker/internal/cli"
 )
 
 // newAdmissionCmd builds one admission-control command. drain/pause/resume are

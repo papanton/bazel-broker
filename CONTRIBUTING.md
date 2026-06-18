@@ -35,7 +35,7 @@ bundles the `broker` daemon into the app.
 
 ## Conventions (don't break — multiple components depend on these)
 
-- **Module:** `github.com/antoniospapantoniou/bazel-broker`. Go 1.26. cgo only in
+- **Module:** `github.com/papanton/bazel-broker`. Go 1.26. cgo only in
   `internal/discovery` (libproc); the rest stays pure-Go.
 - **`internal/api` is the FROZEN wire contract** between the daemon and every front-end. Golden
   serializations live in `testdata/api/*.json`; `internal/api` and the Swift app both decode

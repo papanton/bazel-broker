@@ -21,7 +21,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/build"
+	"github.com/papanton/bazel-broker/internal/build"
 )
 
 //go:embed schema.sql

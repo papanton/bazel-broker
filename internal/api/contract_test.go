@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/api"
+	"github.com/papanton/bazel-broker/internal/api"
 )
 
 // updateGolden regenerates the testdata/api/*.json fixtures from the canonical

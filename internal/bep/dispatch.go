@@ -16,9 +16,9 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/build"
-	bes "github.com/antoniospapantoniou/bazel-broker/internal/genproto/buildeventstream"
-	"github.com/antoniospapantoniou/bazel-broker/internal/metrics"
+	"github.com/papanton/bazel-broker/internal/build"
+	bes "github.com/papanton/bazel-broker/internal/genproto/buildeventstream"
+	"github.com/papanton/bazel-broker/internal/metrics"
 )
 
 // Registry is the subset of *registry.Registry the BEP ingest needs. Kept as an
@@ -55,7 +55,7 @@ type stream struct {
 
 	// per-build accumulation
 	row        *metrics.Row
-	command    string // bazel verb from BuildStarted (build|run|test|…)
+	command    string   // bazel verb from BuildStarted (build|run|test|…)
 	patterns   []string // target patterns from the pattern-expanded event
 	rawMetrics string
 	bound      bool // BuildStarted.uuid seen → row.InvocationID set + stub registered

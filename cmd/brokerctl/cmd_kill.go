@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/cli"
+	"github.com/papanton/bazel-broker/internal/cli"
 )
 
 // newKillCmd stops a build: POST /builds/{invocation_id}/kill. Degrades cleanly to

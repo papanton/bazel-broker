@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/api"
-	"github.com/antoniospapantoniou/bazel-broker/internal/build"
-	"github.com/antoniospapantoniou/bazel-broker/internal/registry"
+	"github.com/papanton/bazel-broker/internal/api"
+	"github.com/papanton/bazel-broker/internal/build"
+	"github.com/papanton/bazel-broker/internal/registry"
 )
 
 // serveKill mounts the Killer on a mux exactly as httpapi.WithKiller would route it, so

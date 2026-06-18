@@ -11,9 +11,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/build"
-	"github.com/antoniospapantoniou/bazel-broker/internal/metrics"
-	"github.com/antoniospapantoniou/bazel-broker/internal/store"
+	"github.com/papanton/bazel-broker/internal/build"
+	"github.com/papanton/bazel-broker/internal/metrics"
+	"github.com/papanton/bazel-broker/internal/store"
 )
 
 // providerHarness wires a real store + provider behind a bare mux mirroring the

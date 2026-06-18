@@ -29,7 +29,7 @@ location, env vars, ports/tokens) that E1–E8 will import or assume.
 - Repo directory layout: `cmd/broker`, `cmd/brokerctl`, `tools/bazel` (placeholder), `testdata/`,
   `internal/` packages, `plans/`.
 - `go.mod` — single module covering broker + CLI. **Proposed module path:**
-  `github.com/antoniospapantoniou/bazel-broker` (see §6 / Open Decision OD-1).
+  `github.com/papanton/bazel-broker` (see §6 / Open Decision OD-1).
 - `Makefile` targets: `build`, `run-broker`, `verify-fast`, `verify-e2e`, plus support targets
   (`fmt`, `vet`, `test`, `clean`, `tidy`, `tools`).
 - `.gitignore`.
@@ -67,7 +67,7 @@ package boundaries and shared constants defined here are contracts (§4) the oth
 
 ```
 bazel-broker/
-├── go.mod                          # module github.com/antoniospapantoniou/bazel-broker (OD-1)
+├── go.mod                          # module github.com/papanton/bazel-broker (OD-1)
 ├── go.sum
 ├── Makefile
 ├── .gitignore
@@ -133,7 +133,7 @@ so each epic just *uses* them rather than re-running `go get`, keeping `go.sum` 
 feature PRs. Pin to versions current as of 2026-06 (resolve exact patch via `go get` at impl time).
 
 ```
-module github.com/antoniospapantoniou/bazel-broker
+module github.com/papanton/bazel-broker
 
 go 1.26
 
@@ -380,10 +380,10 @@ import (
     "os/signal"
     "syscall"
 
-    "github.com/antoniospapantoniou/bazel-broker/internal/config"
-    "github.com/antoniospapantoniou/bazel-broker/internal/httpapi"
-    "github.com/antoniospapantoniou/bazel-broker/internal/logging"
-    "github.com/antoniospapantoniou/bazel-broker/internal/version"
+    "github.com/papanton/bazel-broker/internal/config"
+    "github.com/papanton/bazel-broker/internal/httpapi"
+    "github.com/papanton/bazel-broker/internal/logging"
+    "github.com/papanton/bazel-broker/internal/version"
 )
 
 func main() {
@@ -428,7 +428,7 @@ import (
     "net"
     "net/http"
 
-    "github.com/antoniospapantoniou/bazel-broker/internal/config"
+    "github.com/papanton/bazel-broker/internal/config"
 )
 
 type Server struct {
@@ -473,7 +473,7 @@ import (
     "os"
 
     "github.com/spf13/cobra"
-    "github.com/antoniospapantoniou/bazel-broker/internal/version"
+    "github.com/papanton/bazel-broker/internal/version"
 )
 
 func main() {
@@ -748,7 +748,7 @@ exec "${BAZEL_REAL:?tools/bazel must be invoked via the bazel launcher with BAZE
 ```make
 # Bazel Broker — build & verify entrypoints. See CLAUDE.md for per-component recipes.
 SHELL          := /usr/bin/env bash
-MODULE         := github.com/antoniospapantoniou/bazel-broker
+MODULE         := github.com/papanton/bazel-broker
 BIN_DIR        := bin
 BROKER_BIN     := $(BIN_DIR)/broker
 BROKERCTL_BIN  := $(BIN_DIR)/brokerctl
@@ -907,7 +907,7 @@ Single-Mac, self-contained control + observability for Bazel across git worktree
 Architecture: plans/01-architecture.md · Epics: plans/02-epics.md.
 
 ## Conventions (DO NOT BREAK — other epics depend on these; E2 is authoritative for the API)
-- Module path: github.com/antoniospapantoniou/bazel-broker
+- Module path: github.com/papanton/bazel-broker
 - Go 1.26, macOS arm64. cgo only inside internal/discovery (E3); default build stays pure-Go.
 - Logging: slog JSON handler via internal/logging. Always include key "invocation_id".
 - Config file: ~/.config/bazel-broker/config.json (override the file via $BAZEL_BROKER_CONFIG).
@@ -1010,7 +1010,7 @@ These are **frozen by E0** — changing them is a cross-epic event.
 
 | Contract | Value / shape | Consumed by |
 |---|---|---|
-| **Module path** | `github.com/antoniospapantoniou/bazel-broker` (OD-1) | all Go epics |
+| **Module path** | `github.com/papanton/bazel-broker` (OD-1) | all Go epics |
 | **Shared types** | `internal/build.Build` (domain) + `internal/wire.Build` (JSON DTO, importable); `State` ∈ {queued,running,finished,failed,killed,unknown}; `Source` ∈ {registered,discovered}. E2 §4.1 freezes tags. | E2 (registry/API), E3 (discovery), E4 (metrics), E6/E7/E8 (render) |
 | **Config file** | `~/.config/bazel-broker/config.json`; override the *file* via `$BAZEL_BROKER_CONFIG`; respects `$XDG_CONFIG_HOME` for the dir | E2 (config/token), E5 (admission settings) |
 | **State files** | `~/.local/state/bazel-broker/`: `broker.db`, `broker.log` (XDG state dir; not the config dir) | E2, E4 |
@@ -1072,7 +1072,7 @@ event for E4 and a Perfetto-loadable profile (architecture §10).
 ## 6. Risks, edge cases, open decisions
 
 **Open decisions surfaced (NOT resolved here — flagged for the owner):**
-- **OD-1 (module path).** Proposed `github.com/antoniospapantoniou/bazel-broker`. Alternative:
+- **OD-1 (module path).** Proposed `github.com/papanton/bazel-broker`. Alternative:
   a vanity/local path like `bazelbroker.local` or `go.antonis.dev/bazel-broker`. Since the tool is
   never `go install`-ed by third parties and ships as a Homebrew cask, any stable string works —
   but it must be **chosen once** before T1 because it appears in every import. *Recommend the

@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/build"
-	"github.com/antoniospapantoniou/bazel-broker/internal/registry"
+	"github.com/papanton/bazel-broker/internal/build"
+	"github.com/papanton/bazel-broker/internal/registry"
 )
 
 // DefaultInterval is the reconcile cadence. 1s is fast enough that a build appears in

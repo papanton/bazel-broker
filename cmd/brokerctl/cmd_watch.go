@@ -4,7 +4,7 @@ import (
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/cli"
+	"github.com/papanton/bazel-broker/internal/cli"
 )
 
 // newWatchCmd streams live build upserts over WS /events. Human mode redraws a

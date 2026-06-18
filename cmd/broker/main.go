@@ -15,15 +15,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/admission"
-	"github.com/antoniospapantoniou/bazel-broker/internal/bep"
-	"github.com/antoniospapantoniou/bazel-broker/internal/config"
-	"github.com/antoniospapantoniou/bazel-broker/internal/discovery"
-	"github.com/antoniospapantoniou/bazel-broker/internal/httpapi"
-	"github.com/antoniospapantoniou/bazel-broker/internal/logging"
-	"github.com/antoniospapantoniou/bazel-broker/internal/registry"
-	"github.com/antoniospapantoniou/bazel-broker/internal/store"
-	"github.com/antoniospapantoniou/bazel-broker/internal/version"
+	"github.com/papanton/bazel-broker/internal/admission"
+	"github.com/papanton/bazel-broker/internal/bep"
+	"github.com/papanton/bazel-broker/internal/config"
+	"github.com/papanton/bazel-broker/internal/discovery"
+	"github.com/papanton/bazel-broker/internal/httpapi"
+	"github.com/papanton/bazel-broker/internal/logging"
+	"github.com/papanton/bazel-broker/internal/registry"
+	"github.com/papanton/bazel-broker/internal/store"
+	"github.com/papanton/bazel-broker/internal/version"
 )
 
 // hydrateLimit is the number of recent builds loaded from the store at boot.

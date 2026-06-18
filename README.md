@@ -26,7 +26,7 @@ Bazel Broker is a small background daemon that fixes all four, locally.
 ## Install (Homebrew)
 
 ```sh
-brew tap antoniospapantoniou/tap
+brew tap papanton/tap
 brew install --cask bazel-broker     # the menu-bar app (bundles the daemon)
 brew install brokerctl               # the CLI
 ```

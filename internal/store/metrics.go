@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/metrics"
+	"github.com/papanton/bazel-broker/internal/metrics"
 )
 
 // DiskReport is one row of disk_cache_reports.

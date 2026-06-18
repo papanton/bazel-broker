@@ -15,9 +15,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/api"
-	"github.com/antoniospapantoniou/bazel-broker/internal/config"
-	"github.com/antoniospapantoniou/bazel-broker/internal/registry"
+	"github.com/papanton/bazel-broker/internal/api"
+	"github.com/papanton/bazel-broker/internal/config"
+	"github.com/papanton/bazel-broker/internal/registry"
 )
 
 // Server is the broker's HTTP front.

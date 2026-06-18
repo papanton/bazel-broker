@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/api"
-	"github.com/antoniospapantoniou/bazel-broker/internal/registry"
+	"github.com/papanton/bazel-broker/internal/api"
+	"github.com/papanton/bazel-broker/internal/registry"
 )
 
 // Killer implements httpapi.Killer: it owns POST /builds/{invocation_id}/kill. It

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/api"
-	"github.com/antoniospapantoniou/bazel-broker/internal/apiclient"
+	"github.com/papanton/bazel-broker/internal/api"
+	"github.com/papanton/bazel-broker/internal/apiclient"
 )
 
 // Client wraps apiclient.Client and maps its typed errors (StatusError /

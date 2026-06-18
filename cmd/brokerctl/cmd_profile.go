@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/cli"
+	"github.com/papanton/bazel-broker/internal/cli"
 )
 
 // newProfileCmd resolves a build's profile target and opens it in Perfetto via

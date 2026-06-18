@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/apiclient"
+	"github.com/papanton/bazel-broker/internal/apiclient"
 )
 
 func splitHostPort(t *testing.T, raw string) (string, int) {

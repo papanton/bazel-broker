@@ -9,7 +9,7 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 
-	bes "github.com/antoniospapantoniou/bazel-broker/internal/genproto/buildeventstream"
+	bes "github.com/papanton/bazel-broker/internal/genproto/buildeventstream"
 )
 
 // decodeStream reads an NDJSON BEP fixture and folds every event into a Row,

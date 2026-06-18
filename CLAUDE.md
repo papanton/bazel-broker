@@ -5,7 +5,7 @@ Architecture: `plans/01-architecture.md` · Epics: `plans/02-epics.md` ·
 Binding cross-epic reconciliation (read first): `plans/epics/00-consolidated-review.md`.
 
 ## Conventions (DO NOT BREAK — other epics depend on these; E2 is authoritative for the API)
-- **Module path: `github.com/antoniospapantoniou/bazel-broker`** — appears in every import.
+- **Module path: `github.com/papanton/bazel-broker`** — appears in every import.
 - Go 1.26, macOS arm64. cgo only inside `internal/discovery` (E3); the default build stays pure-Go.
 - Logging: slog **JSON** handler via `internal/logging`. Always include the key `invocation_id`
   on build-scoped log lines. Level via `$BAZEL_BROKER_LOG_LEVEL` (default info).

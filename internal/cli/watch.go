@@ -8,7 +8,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/api"
+	"github.com/papanton/bazel-broker/internal/api"
 )
 
 // applyEvent folds one WS event into the local build map. snapshot replaces the

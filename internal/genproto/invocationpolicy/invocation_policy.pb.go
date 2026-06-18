@@ -21,7 +21,7 @@
 package invocationpolicy
 
 import (
-	strategypolicy "github.com/antoniospapantoniou/bazel-broker/internal/genproto/strategypolicy"
+	strategypolicy "github.com/papanton/bazel-broker/internal/genproto/strategypolicy"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"

@@ -18,7 +18,7 @@ package metrics
 import (
 	"strings"
 
-	bes "github.com/antoniospapantoniou/bazel-broker/internal/genproto/buildeventstream"
+	bes "github.com/papanton/bazel-broker/internal/genproto/buildeventstream"
 )
 
 // Runner-count name literals Bazel emits in ActionSummary.runner_count[] (the

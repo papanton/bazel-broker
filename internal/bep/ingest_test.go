@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/build"
-	"github.com/antoniospapantoniou/bazel-broker/internal/metrics"
+	"github.com/papanton/bazel-broker/internal/build"
+	"github.com/papanton/bazel-broker/internal/metrics"
 )
 
 // fakeReg is a minimal Registry for dispatch/tailer tests.

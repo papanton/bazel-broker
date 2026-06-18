@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/cli"
+	"github.com/papanton/bazel-broker/internal/cli"
 )
 
 // newLsCmd lists builds: GET /builds. --json echoes E2's {"builds":[…]} verbatim

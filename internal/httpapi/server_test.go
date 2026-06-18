@@ -12,11 +12,11 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/api"
-	buildpkg "github.com/antoniospapantoniou/bazel-broker/internal/build"
-	"github.com/antoniospapantoniou/bazel-broker/internal/config"
-	"github.com/antoniospapantoniou/bazel-broker/internal/registry"
-	"github.com/antoniospapantoniou/bazel-broker/internal/store"
+	"github.com/papanton/bazel-broker/internal/api"
+	buildpkg "github.com/papanton/bazel-broker/internal/build"
+	"github.com/papanton/bazel-broker/internal/config"
+	"github.com/papanton/bazel-broker/internal/registry"
+	"github.com/papanton/bazel-broker/internal/store"
 )
 
 const testToken = "test-token-123"

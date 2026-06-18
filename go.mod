@@ -1,4 +1,4 @@
-module github.com/antoniospapantoniou/bazel-broker
+module github.com/papanton/bazel-broker
 
 go 1.26
 

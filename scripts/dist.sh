@@ -14,7 +14,7 @@ cd "$(dirname "$0")/.."
 
 VERSION="${1:-$(git describe --tags --always --dirty 2>/dev/null || echo 0.0.0)}"
 VERSION="${VERSION#v}"
-MODULE="github.com/antoniospapantoniou/bazel-broker"
+MODULE="github.com/papanton/bazel-broker"
 COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo none)"
 DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 LDFLAGS="-X $MODULE/internal/version.Version=$VERSION -X $MODULE/internal/version.Commit=$COMMIT -X $MODULE/internal/version.Date=$DATE"

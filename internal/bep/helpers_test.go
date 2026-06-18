@@ -11,7 +11,7 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 
-	bes "github.com/antoniospapantoniou/bazel-broker/internal/genproto/buildeventstream"
+	bes "github.com/papanton/bazel-broker/internal/genproto/buildeventstream"
 )
 
 func testLogger() *slog.Logger {

@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/build"
-	"github.com/antoniospapantoniou/bazel-broker/internal/registry"
+	"github.com/papanton/bazel-broker/internal/build"
+	"github.com/papanton/bazel-broker/internal/registry"
 )
 
 // TestE2EDiscoverAndKill is the full E3 "Done when": launch fake-bazel.sh (long

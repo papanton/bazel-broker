@@ -14,7 +14,7 @@ package build
 import (
 	"time"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/api"
+	"github.com/papanton/bazel-broker/internal/api"
 )
 
 // State is the lifecycle state of a build. The string values are the wire

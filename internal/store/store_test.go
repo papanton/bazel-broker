@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/antoniospapantoniou/bazel-broker/internal/build"
+	"github.com/papanton/bazel-broker/internal/build"
 )
 
 func tempStore(t *testing.T) *Store {
