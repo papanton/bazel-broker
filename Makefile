@@ -54,5 +54,15 @@ verify-e2e: build                       ## real bazel build in testdata/workspac
 	  echo "SKIP verify-e2e: no bazel/bazelisk on PATH"; \
 	fi
 
+.PHONY: install uninstall
+install: $(BROKER_BIN)                  ## install the launchd LaunchAgent (per-user)
+	deploy/install.sh install "$(abspath $(BROKER_BIN))"
+uninstall:                              ## remove the launchd LaunchAgent
+	deploy/install.sh uninstall
+
+.PHONY: smoke
+smoke: $(BROKER_BIN)                    ## start broker, run the register->ls->deregister curl flow, assert states
+	scripts/smoke.sh
+
 .PHONY: clean
 clean: ; rm -rf $(BIN_DIR)

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>            <string>com.bazelbroker.broker</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>__BINARY__</string>          <!-- e.g. /usr/local/bin/broker -->
+        <string>--config</string>
+        <string>__CONFIG__</string>          <!-- ~/.config/bazel-broker/config.json -->
+    </array>
+    <key>RunAtLoad</key>        <true/>
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key> <false/>   <!-- restart on crash; not on clean unload -->
+    </dict>
+    <key>ProcessType</key>      <string>Background</string>
+    <key>ThrottleInterval</key> <integer>5</integer>
+    <key>StandardOutPath</key>  <string>__HOME__/.local/state/bazel-broker/stdout.log</string>
+    <key>StandardErrorPath</key><string>__HOME__/.local/state/bazel-broker/stderr.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>BAZEL_BROKER_CONFIG</key> <string>__CONFIG__</string>
+    </dict>
+</dict>
+</plist>

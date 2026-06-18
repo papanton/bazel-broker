@@ -1,47 +1,98 @@
-// Command broker is the headless control+observability daemon. E0 ships a stub
-// that parses flags, sets up slog, and runs the /healthz-only server. E2 fleshes
-// out config loading, the registry, the full API, and launchd integration.
+// Command broker is the headless control + observability daemon (E2). It loads
+// config, opens the SQLite store, hydrates the in-memory registry, and serves the
+// loopback HTTP + WebSocket API guarded by a bearer token, with graceful
+// shutdown on SIGINT/SIGTERM (launchd sends SIGTERM on unload, KeepAlive
+// restarts; the registry rehydrates from SQLite so /builds is continuous).
 package main
 
 import (
 	"context"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/antoniospapantoniou/bazel-broker/internal/config"
 	"github.com/antoniospapantoniou/bazel-broker/internal/httpapi"
 	"github.com/antoniospapantoniou/bazel-broker/internal/logging"
+	"github.com/antoniospapantoniou/bazel-broker/internal/registry"
+	"github.com/antoniospapantoniou/bazel-broker/internal/store"
 	"github.com/antoniospapantoniou/bazel-broker/internal/version"
 )
 
+// hydrateLimit is the number of recent builds loaded from the store at boot.
+const hydrateLimit = 200
+
 func main() {
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, "broker:", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
+	// --config / --version are accepted for the launchd plist and CLAUDE recipes.
+	// The config *file* is resolved via $BAZEL_BROKER_CONFIG (set by the plist).
 	showVersion := flag.Bool("version", false, "print version and exit")
-	_ = flag.String("config", "", "config file path (E2 wires this to config.Load)")
+	cfgPath := flag.String("config", "", "config file path")
 	flag.Parse()
 
 	if *showVersion {
 		fmt.Println(version.String())
-		return
+		return nil
+	}
+	if *cfgPath != "" {
+		// Honor an explicit --config by setting the env the resolver reads.
+		_ = os.Setenv(config.EnvConfig, *cfgPath)
 	}
 
 	cfg, err := config.Load()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "config:", err)
-		os.Exit(1)
+		return fmt.Errorf("config: %w", err)
 	}
 
-	log := logging.New(os.Stderr, "info") // E2: switch writer to config.LogPath
-	log.Info("broker starting", "version", version.Version, "port", cfg.Port)
+	log := logging.NewFile(cfg.LogPath)
+	log.Info("broker starting", "version", version.Version, "port", cfg.Port, "db", cfg.DBPath)
+
+	st, err := store.Open(cfg.DBPath, log)
+	if err != nil {
+		return fmt.Errorf("store: %w", err)
+	}
+	defer st.Close()
+
+	hub := registry.NewHub()
+	reg := registry.New(st, hub, log)
+	if err := reg.HydrateFromStore(hydrateLimit); err != nil {
+		log.Error("hydrate failed", "err", err)
+	}
+
+	// Always bind loopback regardless of cfg.Host (loopback-only guarantee).
+	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", cfg.Port))
+	if err != nil {
+		return fmt.Errorf("listen 127.0.0.1:%d: %w", cfg.Port, err)
+	}
+
+	srv := httpapi.New(cfg, reg, hub, log, httpapi.WithVersion(version.Version))
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	srv := httpapi.New(cfg, log) // E0: /healthz only; E2 widens this constructor
-	if err := srv.Run(ctx); err != nil {
-		log.Error("server exited", "err", err)
-		os.Exit(1)
+	errCh := make(chan error, 1)
+	go func() {
+		log.Info("listening", "addr", ln.Addr().String())
+		errCh <- srv.Serve(ln)
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+	case <-ctx.Done():
+		log.Info("shutting down")
+		sctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		return srv.Shutdown(sctx)
 	}
 }

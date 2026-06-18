@@ -65,9 +65,22 @@ scripts/verify-fast.sh            the fast verify orchestrator
 ```
 
 ## Per-component recipes (filled in as epics land)
-- **broker daemon (E2):** `make run-broker`;
+- **broker daemon (E2):** `make run-broker` (foreground); `make smoke` (automated
+  register->ls->deregister flow on an isolated port/config — asserts states);
+  `make install` / `make uninstall` (launchd LaunchAgent via `deploy/install.sh`).
+  Manual:
   `TOKEN=$(jq -r .token ~/.config/bazel-broker/config.json)`;
-  `curl 127.0.0.1:8765/healthz`  (`/healthz` is auth-exempt).
+  `curl 127.0.0.1:8765/healthz`  (`/healthz` is auth-exempt) ->
+  `{"status":"ok","builds":0,"queued":0,"total":0,...}`;
+  `curl -H "Authorization: Bearer $TOKEN" 127.0.0.1:8765/builds` (== `ls --json`);
+  register: `curl -H "Authorization: Bearer $TOKEN" -X POST 127.0.0.1:8765/register
+  -d '{"invocation_id":"x","worktree":"/wt","targets":["//app:App"],"pid":1}'`;
+  live events: `websocat -H "Authorization: Bearer $TOKEN" ws://127.0.0.1:8765/events`
+  (first frame `snapshot`, then `build` upsert events).
+  Wire contract is `internal/api` (FROZEN, §4); golden fixtures in `testdata/api/*.json`
+  (regen with `go test ./internal/api -update`). Reserved routes (E3 kill / E4 metrics+profile /
+  E5 admission) return **501** at the exact path the consumer calls; inject a real handler via
+  `httpapi.WithKiller/WithMetrics/WithAdmitter` (no main.go edits).
 - **discovery/kill (E3):** launch fake-bazel long; `brokerctl ls`; `brokerctl kill <id>`.
   Broker's kill path must use SIGTERM / process-group SIGINT, not a bare `kill -INT <pid>`.
 - **BEP/metrics (E4):** point ingest at a BEP json; `brokerctl metrics <id>`.

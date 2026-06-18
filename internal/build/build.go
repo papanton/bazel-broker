@@ -1,16 +1,21 @@
 // Package build holds the in-memory domain object for a Bazel build.
 //
-// This is an E0 stub matching the shapes E2 (the authoritative API contract)
-// commits to. E2 fills in behavior; E0 only freezes the package name, the
-// State/Source enum string values, and the Build field set so that every later
-// epic imports a stable path without a rename churn.
+// Two layers are kept distinct on purpose: this rich domain object (build.Build)
+// plus the flat JSON DTO in internal/api (api.Build). The DTO is what crosses the
+// wire; internal-only fields (proc handle, discovery seam fields, bep/profile
+// paths) stay off the wire. A single ToAPI mapper bridges the two so the wire
+// contract can never accidentally leak internal fields.
 //
-// Note the two layers kept distinct on purpose: this domain object plus the
-// flat JSON DTO in internal/api (api.Build). The DTO is what crosses the wire;
-// fields like PID/proc handles that E3/E4 add stay off the wire.
+// E2 §2.2 is authoritative for the field set and the State/Source enum strings.
+// The discovery seam fields (ExePath/Cwd/GitDir/WorktreeName/LastSeen) and the
+// `gone` state are declared here so E3 adds *behavior*, not *schema*.
 package build
 
-import "time"
+import (
+	"time"
+
+	"github.com/antoniospapantoniou/bazel-broker/internal/api"
+)
 
 // State is the lifecycle state of a build. The string values are the wire
 // contract, frozen by E2 (§2.2/§4.1).
@@ -18,12 +23,23 @@ type State string
 
 const (
 	StateQueued   State = "queued"   // admitted-pending (E5); E2 never sets it itself
-	StateRunning  State = "running"  // actively building
+	StateRunning  State = "running"  // actively building (NOT "building")
 	StateFinished State = "finished" // exited 0
 	StateFailed   State = "failed"   // exited non-zero
 	StateKilled   State = "killed"   // terminated by the broker (E3)
-	StateUnknown  State = "unknown"  // discovered process whose outcome we never observed
+	StateGone     State = "gone"     // discovered process whose PID vanished, outcome unseen (E3 reap)
+	StateUnknown  State = "unknown"  // forward-compat fallback any client maps unrecognized states to
 )
+
+// IsTerminal reports whether s is an end state (no further transitions).
+func (s State) IsTerminal() bool {
+	switch s {
+	case StateFinished, StateFailed, StateKilled, StateGone:
+		return true
+	default:
+		return false
+	}
+}
 
 // Source records how the build entered the registry.
 type Source string
@@ -33,19 +49,25 @@ const (
 	SourceDiscovered Source = "discovered" // via process discovery (E3)
 )
 
-// Build is the in-memory domain object. Fields the wire DTO omits (proc handle,
-// bep/profile paths) are added by E3/E4 — kept off the wire so internal state
-// never leaks to clients.
+// Build is the in-memory domain object. Fields below the "discovery seam" line
+// are populated by later epics; only those noted in §4.1 ever reach the wire.
 type Build struct {
-	InvocationID string
-	Worktree     string
-	Targets      []string
-	PID          int
+	InvocationID string   // Bazel invocation_id (uuid). Primary key. Required.
+	Worktree     string   // absolute path of the git worktree (build cwd)
+	WorktreeName string   // last path component (display); E3 fills, "" until then
+	Targets      []string // bazel targets/patterns, e.g. ["//app:App"]
+	PID          int      // bazel CLIENT pid (0 if unknown at register time)
 	State        State
-	StartTime    time.Time
+	StartTime    time.Time // when the broker first saw it (canonical "first seen")
 	EndTime      time.Time // zero until terminal
-	ExitCode     int       // valid only in terminal states
+	ExitCode     int       // valid only in terminal states; 0 otherwise
 	Source       Source
+
+	// ---- discovery seam (E3 populates; not serialized by E2) ----
+	ExePath  string    // E3: proc_pidpath — client/server filtering, display
+	Cwd      string    // E3: PROC_PIDVNODEPATHINFO — worktree resolution input
+	GitDir   string    // E3: resolved .git dir — output-base lookup for D4 Cancel
+	LastSeen time.Time // E3: last reconcile pass that saw this PID (reap/staleness)
 }
 
 // Elapsed returns wall time, ending at EndTime if terminal else at now.
@@ -57,9 +79,26 @@ func (b Build) Elapsed(now time.Time) time.Duration {
 	return end.Sub(b.StartTime)
 }
 
-// ToWire maps the domain object to its flat JSON DTO.
-//
-// E0 stub: returns nil. E2 T1 implements this to return an api.Build. It is
-// declared here so the seam exists; the return type is `any` only to keep E0
-// free of an import on internal/api's final shape.
-func (b Build) ToWire(now time.Time) any { return nil }
+// ToAPI maps the domain object to its flat JSON DTO (api.Build). `now` is used to
+// compute elapsed_ms for non-terminal builds. Timestamps are emitted as RFC3339
+// in UTC; end_time is left empty (omitted) until the build is terminal.
+func (b Build) ToAPI(now time.Time) api.Build {
+	out := api.Build{
+		InvocationID: b.InvocationID,
+		Worktree:     b.Worktree,
+		WorktreeName: b.WorktreeName,
+		Targets:      b.Targets,
+		PID:          b.PID,
+		State:        string(b.State),
+		StartTime:    api.FormatTime(b.StartTime),
+		EndTime:      api.FormatTime(b.EndTime), // "" (omitted) until terminal
+		ExitCode:     b.ExitCode,
+		Source:       string(b.Source),
+		ElapsedMS:    b.Elapsed(now).Milliseconds(),
+	}
+	if out.Targets == nil {
+		out.Targets = []string{} // always present; [] not null
+	}
+	// CacheHitRatio / ProfileURL are left zero here; E4 fills them.
+	return out
+}

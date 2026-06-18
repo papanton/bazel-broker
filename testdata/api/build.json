@@ -1,0 +1,16 @@
+{
+  "build": {
+    "invocation_id": "a1b2",
+    "worktree": "/wt/feature-a",
+    "worktree_name": "feature-a",
+    "targets": [
+      "//app:App"
+    ],
+    "pid": 4242,
+    "state": "running",
+    "start_time": "2026-06-17T09:41:12Z",
+    "exit_code": 0,
+    "source": "registered",
+    "elapsed_ms": 3120
+  }
+}
