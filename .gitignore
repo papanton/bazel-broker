@@ -39,3 +39,6 @@ broker.json
 
 # Release artifacts (make dist)
 /dist/
+
+# The bazel-* rule above is for Bazel workspace symlinks; keep the packaged cask.
+!/packaging/homebrew/Casks/bazel-broker.rb
