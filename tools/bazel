@@ -1,5 +1,236 @@
-#!/usr/bin/env bash
-# tools/bazel — broker interception hook (PLACEHOLDER; real admission logic lands in E5).
-# Must exec $BAZEL_REAL (set by the launcher), never `bazel`, to avoid infinite recursion.
-set -euo pipefail
-exec "${BAZEL_REAL:?tools/bazel must be invoked via the bazel launcher with BAZEL_REAL set}" "$@"
+#!/bin/bash
+# tools/bazel — Bazel Broker admission wrapper (E5).
+# Committed to the iOS repo -> auto-present in every git worktree (architecture §3 driver 5).
+# Invoked by the bazel/bazelisk LAUNCHER (a native binary, not a shell) with
+# $BAZEL_REAL pointing at the real bazel binary.
+#
+# CONTRACT: on bypass paths exec "$BAZEL_REAL"; on the gated path RUN it as a
+# child and wait (so /admission/release is still POSTed even though the wrapper
+# never relies on a trap for the slot — the broker also releases server-side).
+# NEVER exec "bazel"/"bazelisk" (a bare name) or it recurses forever.
+#
+# set -u (catch unset vars) but NOT set -e: curl returning non-zero must fall
+# through to fail-open, not abort the script.
+set -u
+
+# ---------------------------------------------------------------------------
+# 0. Resolve the real bazel.
+#    NORMAL PATH: the launcher sets BAZEL_REAL and re-execs us; we just use it.
+#    FALLBACK PATH: someone ran tools/bazel directly (BAZEL_REAL unset). We look
+#    up a real bazel/bazelisk on PATH that is NOT this script, and arm a re-entry
+#    tripwire so even a mis-resolved launcher cannot fork-bomb.
+# ---------------------------------------------------------------------------
+if [ -n "${BB_WRAPPER_REENTRY:-}" ] && [ -z "${BAZEL_REAL:-}" ]; then
+  echo "tools/bazel: re-entered without BAZEL_REAL (recursion guard tripped) — aborting" >&2
+  exit 127
+fi
+
+self="$(cd "$(dirname "$0")" && pwd -P)/$(basename "$0")"
+if [ -z "${BAZEL_REAL:-}" ]; then
+  for cand in bazelisk bazel; do
+    while IFS= read -r p; do
+      [ -x "$p" ] || continue
+      rp="$(cd "$(dirname "$p")" 2>/dev/null && pwd -P)/$(basename "$p")"
+      [ "$rp" = "$self" ] && continue           # never pick ourselves
+      BAZEL_REAL="$p"; break 2
+    done <<EOF
+$(command -v -a "$cand" 2>/dev/null)
+EOF
+  done
+  export BB_WRAPPER_REENTRY=1
+fi
+if [ -z "${BAZEL_REAL:-}" ]; then
+  echo "tools/bazel: cannot locate real bazel (BAZEL_REAL unset)" >&2
+  exit 127
+fi
+
+# ---------------------------------------------------------------------------
+# 1. Escape hatches & guards — bypass admission entirely (still exec real bazel).
+#    BROKER_BYPASS=1 / CI=* / non-build commands -> straight exec, no gate.
+# ---------------------------------------------------------------------------
+BROKER_URL="${BROKER_URL:-http://127.0.0.1:8765}"
+BROKER_TOKEN="${BROKER_TOKEN:-}"
+
+# Command verb = first non-flag arg. A mistaken non-allowlisted token just means
+# needs_admission=0 -> we bypass (fail-open direction), never wrongly gate.
+bazel_cmd=""
+for a in "$@"; do
+  case "$a" in
+    --*) continue ;;
+    *)   bazel_cmd="$a"; break ;;
+  esac
+done
+
+needs_admission=0
+case "$bazel_cmd" in
+  build|test|run|coverage|mobile-install|aquery|cquery) needs_admission=1 ;;
+  *) needs_admission=0 ;;
+esac
+
+if [ "${BROKER_BYPASS:-0}" = "1" ] || [ -n "${CI:-}" ] || [ "$needs_admission" -eq 0 ]; then
+  exec "$BAZEL_REAL" "$@"
+fi
+
+# ---------------------------------------------------------------------------
+# 2. Mint a stable invocation id and identify the worktree.
+# ---------------------------------------------------------------------------
+if command -v uuidgen >/dev/null 2>&1; then
+  INVOCATION_ID="$(uuidgen | tr 'A-Z' 'a-z')"
+else
+  INVOCATION_ID="wrap-$$-$(date +%s)"
+fi
+WORKTREE="$(cd "$(dirname "$0")/.." && pwd -P)"   # tools/bazel lives in <worktree>/tools/
+TARGETS=""
+for a in "$@"; do
+  case "$a" in
+    -*) ;;
+    build|test|run|coverage|mobile-install|aquery|cquery|query|info|version|help|clean|shutdown) ;;
+    *) TARGETS="${TARGETS:+$TARGETS }$a" ;;
+  esac
+done
+
+# ---------------------------------------------------------------------------
+# 3. Request admission. Long-poll: broker holds the request open until a slot
+#    frees, then returns 200 ALLOW. 202 QUEUE => re-poll. Any error / unreachable
+#    broker => FAIL-OPEN (build anyway). Single-word body + status: no jq needed.
+# ---------------------------------------------------------------------------
+admission_body=""
+admission_code=""
+post_admission() {
+  local out
+  out="$(curl -sS \
+      --max-time "${ADMISSION_CURL_TIMEOUT:-40}" \
+      -o - -w '\n%{http_code}' \
+      -H "Content-Type: application/json" \
+      ${BROKER_TOKEN:+-H "Authorization: Bearer $BROKER_TOKEN"} \
+      -X POST "$BROKER_URL/admission" \
+      --data "{\"invocation_id\":\"$INVOCATION_ID\",\"worktree\":\"$WORKTREE\",\"pid\":$$,\"targets\":\"$TARGETS\"}" \
+      2>/dev/null)" || { admission_code="000"; return 1; }
+  admission_code="${out##*$'\n'}"
+  admission_body="${out%$'\n'*}"
+  admission_body="$(printf '%s' "$admission_body" | head -n1 | tr -d '[:space:]')"
+  return 0
+}
+
+attempt=0
+max_attempts="${ADMISSION_MAX_ATTEMPTS:-240}"
+while :; do
+  attempt=$((attempt + 1))
+  if ! post_admission; then
+    echo "tools/bazel: broker unreachable at $BROKER_URL — proceeding (fail-open)" >&2
+    break
+  fi
+  case "$admission_code" in
+    200) break ;;                            # ALLOW
+    202|429) ;;                              # QUEUE -> re-poll (keeps our invocation_id slot)
+    403) echo "tools/bazel: admission DENIED by broker (drain?) — not building" >&2
+         exit 75 ;;                          # EX_TEMPFAIL: deliberate denial
+    *)   echo "tools/bazel: broker returned $admission_code — proceeding (fail-open)" >&2
+         break ;;
+  esac
+  if [ "$attempt" -ge "$max_attempts" ]; then
+    echo "tools/bazel: admission timed out after $attempt polls — proceeding (fail-open)" >&2
+    break
+  fi
+done
+
+# ---------------------------------------------------------------------------
+# 4. Release-on-exit. The broker ALSO releases the slot server-side when it sees
+#    the build finish (deregister / BEP / process-gone reconcile) — so the slot
+#    never leaks even if this trap is skipped. We still POST /admission/release as
+#    the prompt happy-path, which requires NOT exec'ing bazel (exec would discard
+#    the trap). Run bazel as a child, forward signals, wait, release, exit.
+# ---------------------------------------------------------------------------
+release() {
+  curl -sS --max-time 5 \
+    -H "Content-Type: application/json" \
+    ${BROKER_TOKEN:+-H "Authorization: Bearer $BROKER_TOKEN"} \
+    -X POST "$BROKER_URL/admission/release" \
+    --data "{\"invocation_id\":\"$INVOCATION_ID\"}" >/dev/null 2>&1 || true
+}
+trap release EXIT
+forward_sig() { [ -n "${bazel_pid:-}" ] && kill -s "$1" "$bazel_pid" 2>/dev/null || true; }
+trap 'forward_sig INT'  INT
+trap 'forward_sig TERM' TERM
+
+# ---------------------------------------------------------------------------
+# 5. Inject the E1 flag set (cache sharing + relocatability + per-invocation
+#    BEP/profile). These MIRROR E1's canonical setup.sh output (cache-config/) so
+#    an --ignore_all_rc_files build still gets relocatable, cache-hitting actions.
+#    --max_idle_secs keeps the server warm (keep-servers-warm).
+#
+#    IMPORTANT (E1 sync): E1 emits --copt/--objccopt prefix-maps ONLY. It does NOT
+#    emit --swiftcopt=-ffile-prefix-map (swiftc rejects the clang spelling; Swift
+#    relocatability comes from the rules_swift swift.file_prefix_map feature). We
+#    mirror E1 exactly — adding a swiftcopt clang map here would break swift builds
+#    and diverge from E1, regressing cross-worktree cache hits.
+# ---------------------------------------------------------------------------
+BROKER_CACHE_DIR="${BROKER_CACHE_DIR:-$HOME/.cache/bazel-broker/disk_cache}"
+BROKER_REPO_CACHE="${BROKER_REPO_CACHE:-$HOME/.cache/bazel-broker/repo_cache}"
+BROKER_EVENT_DIR="${BROKER_EVENT_DIR:-$HOME/.local/state/bazel-broker/bep}"
+BROKER_PROFILE_DIR="${BROKER_PROFILE_DIR:-$HOME/.local/state/bazel-broker/profiles}"
+mkdir -p "$BROKER_CACHE_DIR" "$BROKER_REPO_CACHE" "$BROKER_EVENT_DIR" "$BROKER_PROFILE_DIR" 2>/dev/null || true
+
+BEP_FILE="$BROKER_EVENT_DIR/$INVOCATION_ID.bep.json"
+PROFILE_FILE="$BROKER_PROFILE_DIR/$INVOCATION_ID.profile.gz"
+
+# Split args at the command verb and at a literal "--" (end of bazel's flags).
+# Injected build flags go AFTER the command verb and BEFORE any "--".
+head_args=()
+mid_args=()
+post_dd=()
+seen_cmd=0
+seen_dd=0
+for a in "$@"; do
+  if [ "$seen_dd" -eq 1 ]; then
+    post_dd+=("$a"); continue
+  fi
+  if [ "$a" = "--" ]; then
+    seen_dd=1; post_dd+=("$a"); continue
+  fi
+  if [ "$seen_cmd" -eq 0 ]; then
+    head_args+=("$a")
+    case "$a" in
+      build|test|run|coverage|mobile-install|aquery|cquery) seen_cmd=1 ;;
+    esac
+  else
+    mid_args+=("$a")
+  fi
+done
+
+INJECTED_STARTUP=( "--max_idle_secs=${BROKER_MAX_IDLE_SECS:-10800}" )
+INJECTED_BUILD=(
+  "--invocation_id=$INVOCATION_ID"
+  "--build_event_json_file=$BEP_FILE"
+  "--generate_json_trace_profile"
+  "--profile=$PROFILE_FILE"
+  "--disk_cache=$BROKER_CACHE_DIR"
+  "--repository_cache=$BROKER_REPO_CACHE"
+  # Relocatability — mirror E1 cache-config/setup.sh EXACTLY (copt + objccopt only).
+  "--incompatible_strict_action_env"
+  "--experimental_output_paths=strip"
+  "--copt=-ffile-prefix-map=$WORKTREE=."
+  "--copt=-fdebug-prefix-map=$WORKTREE=."
+  "--objccopt=-ffile-prefix-map=$WORKTREE=."
+  "--objccopt=-fdebug-prefix-map=$WORKTREE=."
+)
+
+# bash 3.2 + set -u: "${arr[@]}" on an EMPTY array is an unbound-var error; guard
+# possibly-empty arrays with ${arr[@]+"${arr[@]}"}. head_args always holds >=1.
+"$BAZEL_REAL" \
+  "${INJECTED_STARTUP[@]}" \
+  "${head_args[@]}" \
+  "${INJECTED_BUILD[@]}" \
+  ${mid_args[@]+"${mid_args[@]}"} \
+  ${post_dd[@]+"${post_dd[@]}"} &
+bazel_pid=$!
+
+bazel_rc=0
+while :; do
+  if wait "$bazel_pid"; then bazel_rc=0; else bazel_rc=$?; fi
+  kill -0 "$bazel_pid" 2>/dev/null || break
+done
+
+release          # explicit prompt release (the EXIT trap also calls it; idempotent server-side)
+trap - EXIT
+exit "$bazel_rc"
