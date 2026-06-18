@@ -32,6 +32,16 @@ struct BuildRowView: View {
                         .truncationMode(.middle)
                 }
                 metaRow
+                if build.isActive {
+                    // Bazel doesn't stream a completion %, so show an indeterminate
+                    // activity bar — the row clearly reads as "in progress" alongside
+                    // the live-ticking elapsed time.
+                    ProgressView()
+                        .progressViewStyle(.linear)
+                        .controlSize(.small)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityIdentifier("progress-\(build.invocationID)")
+                }
             }
             Spacer(minLength: 4)
             actions

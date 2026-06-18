@@ -65,18 +65,48 @@ final class BrokerStore {
 
     /// Sorted view for the menu: active builds first, then most-recently-started.
     var sortedBuilds: [Build] {
-        builds.sorted { a, b in
-            if a.isActive != b.isActive { return a.isActive }
-            return a.startTime > b.startTime
-        }
+        builds.sorted(by: Self.rank)
     }
 
-    /// "N building, M queued" — `building` counts `.running` (the wire word for an
-    /// active build), `queued` counts `.queued`.
+    /// Builds shown in the menu. Vanished (`gone`) builds are hidden, and the two
+    /// rows the broker tracks for ONE physical build — the process-discovered
+    /// `pid-…` row and the BEP-bound Bazel-uuid row — are collapsed per worktree
+    /// into a single row (preferring the uuid row: it carries targets + cache%).
+    /// The header count derives from this too, so "N building" matches the rows.
+    var visibleBuilds: [Build] {
+        var best: [String: Build] = [:]
+        var order: [String] = []
+        for b in builds where b.state != .gone {
+            if let cur = best[b.worktree] {
+                if Self.prefer(b, over: cur) { best[b.worktree] = b }
+            } else {
+                best[b.worktree] = b
+                order.append(b.worktree)
+            }
+        }
+        return order.compactMap { best[$0] }.sorted(by: Self.rank)
+    }
+
+    /// "N building, M queued", counted from the de-duplicated visible builds.
     var summary: BuildSummary {
-        let building = builds.filter { $0.state == .running }.count
-        let queued = builds.filter { $0.state == .queued }.count
-        return BuildSummary(building: building, queued: queued)
+        let v = visibleBuilds
+        return BuildSummary(building: v.filter { $0.state == .running }.count,
+                            queued: v.filter { $0.state == .queued }.count)
+    }
+
+    /// Active first, then most recently started.
+    private static func rank(_ a: Build, _ b: Build) -> Bool {
+        if a.isActive != b.isActive { return a.isActive }
+        return a.startTime > b.startTime
+    }
+
+    /// Within one worktree, prefer the active build, then the real Bazel uuid over
+    /// a discovered `pid-…` id, then the most recent.
+    private static func prefer(_ a: Build, over b: Build) -> Bool {
+        if a.isActive != b.isActive { return a.isActive }
+        let aPid = a.invocationID.hasPrefix("pid-"), bPid = b.invocationID.hasPrefix("pid-")
+        if aPid != bPid { return bPid }
+        return a.startTime > b.startTime
     }
 
     func start() {

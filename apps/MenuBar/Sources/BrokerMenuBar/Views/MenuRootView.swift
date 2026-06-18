@@ -27,27 +27,24 @@ struct MenuRootView: View {
 
     @ViewBuilder
     private var content: some View {
-        switch store.connection {
-        case .connected:
-            // Hide `gone` builds: those are discovered processes that have since
-            // vanished — pure noise in a glance view.
-            let visible = store.sortedBuilds.filter { $0.state != .gone }
-            if visible.isEmpty {
-                Text("No active builds")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 18)
-            } else {
-                ScrollView {
-                    VStack(spacing: 0) {
-                        ForEach(visible) { build in
-                            BuildRowView(build: build)
-                            Divider()
-                        }
+        let visible = store.visibleBuilds
+        if !visible.isEmpty {
+            // Show the build list whenever we have builds — even mid-reconnect — so
+            // the list stays stable and the header count always matches the rows.
+            ScrollView {
+                VStack(spacing: 0) {
+                    ForEach(visible) { build in
+                        BuildRowView(build: build)
+                        Divider()
                     }
                 }
             }
-        case .connecting, .disconnected:
+        } else if case .connected = store.connection {
+            Text("No active builds")
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 18)
+        } else {
             DisconnectedView()
         }
     }
