@@ -1,0 +1,60 @@
+# ============================================================================
+#  bazel-broker E1 — cache sharing & profiling (static fragment)
+#  Managed block. Absolute-path lines are appended by bazel-broker setup.sh.
+#  Do not edit between the BEGIN/END markers; re-run setup.sh instead.
+#
+#  See cache-config/README.md for what every line does and the cardinal rule:
+#  share the --disk_cache, NEVER share the output base.
+# ============================================================================
+
+# --- Relocatability (idiomatic): assert the rules_apple/rules_swift/apple_support
+#     relocatability features. These are default-ON in recent versions
+#     (apple_support >= ~1.5, rules_swift >= ~1.5); we pin them so the cache stays
+#     relocatable even if a user/CI flips defaults. They are the PRIMARY lever for
+#     cross-worktree (and cross-machine) hits on an iOS toolchain.
+#     - apple_support: oso_prefix_is_pwd, relative_ast_path, remap_xcode_path
+#     - rules_swift:   swift.cacheable_swiftmodules, swift.file_prefix_map,
+#                      swift.coverage_prefix_map, swift.use_global_module_cache
+common --features=oso_prefix_is_pwd
+common --features=relative_ast_path
+common --features=remap_xcode_path
+common --features=swift.cacheable_swiftmodules
+common --features=swift.file_prefix_map
+common --features=swift.coverage_prefix_map
+common --features=swift.use_global_module_cache
+
+# --- Relocatability: strip config-specific output path segments so that
+#     bazel-out/<cfg>/... is the same string regardless of worktree/config.
+#     Bazel 7+; still flagged `experimental` on 8.x/9.x.
+common --experimental_output_paths=strip
+
+# --- Pin the action environment so it does not vary with each shell's PATH/env,
+#     which would otherwise bust the action key across worktrees/agents.
+#     NOTE (iOS): DEVELOPER_DIR/SDKROOT are set by the apple_support toolchain, NOT
+#     inherited from the client env, so strict mode does NOT strip them. The real risk
+#     is a non-hermetic *tool on PATH*; re-admit a specific one with --action_env=NAME
+#     rather than dropping strict mode. Under strict mode PATH defaults to /bin:/usr/bin.
+build --incompatible_strict_action_env
+
+# --- Profiling: every build writes a Chrome-trace profile. The path is RELATIVE
+#     to the workspace root, so it lands inside each worktree (collision-safe via the
+#     per-output-base lock). Openable directly in ui.perfetto.dev.
+build --generate_json_trace_profile
+build --profile=.bazel-broker/command.profile.gz
+
+# --- Live build event stream for the broker (E4) to tail. RELATIVE path →
+#     one file per worktree, never shared, never clobbered across worktrees.
+#     CONTRACT (consolidated-review C7 / P4): this EXACT string is what E4 tails.
+#     Per-worktree, relative, reused; the per-output-base lock makes it collision-safe.
+build --build_event_json_file=.bazel-broker/bep.json
+
+# >>> setup.sh appends absolute-path lines below this marker <<<
+#   Everything from this marker down is documentation only; setup.sh emits the
+#   committed fragment UP TO this marker, then appends the resolved absolute-path
+#   lines itself (.bazelrc cannot expand ~ / $HOME). What setup.sh appends:
+#     - the shared --disk_cache and --repository_cache (under --cache-dir / $HOME/.cache/bazel-broker)
+#     - the per-worktree C/C++/ObjC clang relocatability maps
+#       (--copt/--objccopt -ffile-prefix-map / -fdebug-prefix-map = <WORKTREE_ABS>=.)
+#   NO --swiftcopt=-ffile-prefix-map is written: swiftc rejects the clang spelling;
+#   the rules_swift swift.file_prefix_map feature (above) emits the correct
+#   single-dash -file-prefix-map itself. See cache-config/README.md for the exact lines.
