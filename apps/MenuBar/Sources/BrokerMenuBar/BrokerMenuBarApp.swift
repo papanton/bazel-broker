@@ -51,7 +51,9 @@ struct MenuBarLabel: View {
         case .connecting:
             Image(systemName: "hammer")
         case .disconnected:
-            Image(systemName: "hammer.badge.exclamationmark")
+            // exclamationmark.triangle.fill is available since macOS 11;
+            // hammer.badge.exclamationmark does not exist on macOS 14 (blank icon).
+            Image(systemName: "exclamationmark.triangle.fill")
         }
     }
 }
