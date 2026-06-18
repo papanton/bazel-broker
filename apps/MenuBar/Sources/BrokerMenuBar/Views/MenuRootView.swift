@@ -15,7 +15,6 @@ struct MenuRootView: View {
             Divider()
 
             content
-                .frame(maxHeight: 360)
 
             Divider()
             actions
@@ -31,6 +30,9 @@ struct MenuRootView: View {
         if !visible.isEmpty {
             // Show the build list whenever we have builds — even mid-reconnect — so
             // the list stays stable and the header count always matches the rows.
+            // Size to the row count (so every row shows, not just the first) up to a
+            // cap, then scroll. A bare ScrollView collapses to ~one row inside a
+            // MenuBarExtra window, which hid the rest.
             ScrollView {
                 VStack(spacing: 0) {
                     ForEach(visible) { build in
@@ -39,6 +41,7 @@ struct MenuRootView: View {
                     }
                 }
             }
+            .frame(height: min(CGFloat(visible.count) * 72 + 4, 340))
         } else if case .connected = store.connection {
             Text("No active builds")
                 .foregroundStyle(.secondary)
