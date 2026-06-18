@@ -23,3 +23,10 @@ bazel-*
 broker.port
 broker.token
 broker.json
+
+# macOS menu-bar app (E8): generated Xcode project + build output.
+# project.yml is the source of truth; regenerate with `xcodegen generate`.
+/apps/MenuBar/BrokerMenuBar.xcodeproj/
+/apps/MenuBar/build/
+/apps/MenuBar/DerivedData/
+/apps/MenuBar/docs/screen-*.png

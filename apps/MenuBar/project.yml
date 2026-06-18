@@ -1,0 +1,78 @@
+name: BrokerMenuBar
+options:
+  bundleIdPrefix: com.bazelbroker
+  deploymentTarget:
+    # macOS 14: the modern Observation stack (@Observable) and MenuBarExtra(.window)
+    # require 14. The epic says "macOS 13+"; 14 is the practical floor for @Observable.
+    macOS: "14.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    # Ad-hoc signing, no team, no notarization — personal/local use only.
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGNING_REQUIRED: "NO"
+    CODE_SIGNING_ALLOWED: "NO"
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+targets:
+  BrokerMenuBar:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/BrokerMenuBar
+        excludes:
+          - "Info.plist"
+          - "BrokerMenuBar.entitlements"
+    info:
+      path: Sources/BrokerMenuBar/Info.plist
+      properties:
+        # Pure menu-bar agent: no Dock icon, no main window.
+        LSUIElement: true
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        LSMinimumSystemVersion: "$(MACOSX_DEPLOYMENT_TARGET)"
+        NSHumanReadableCopyright: "Bazel Broker menu-bar app"
+    entitlements:
+      path: Sources/BrokerMenuBar/BrokerMenuBar.entitlements
+      properties:
+        # No App Sandbox: the app reads the daemon-owned config.json under
+        # ~/.config/bazel-broker, which a sandboxed app could not.
+        com.apple.security.app-sandbox: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bazelbroker.menubar
+        PRODUCT_NAME: BrokerMenuBar
+        GENERATE_INFOPLIST_FILE: "NO"
+        ENABLE_HARDENED_RUNTIME: "NO"
+        LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
+
+  BrokerMenuBarTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests/BrokerMenuBarTests
+        excludes:
+          - "Fixtures"
+      - path: Tests/BrokerMenuBarTests/Fixtures
+        buildPhase: resources
+    dependencies:
+      - target: BrokerMenuBar
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bazelbroker.menubar.tests
+        GENERATE_INFOPLIST_FILE: "YES"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/BrokerMenuBar.app/Contents/MacOS/BrokerMenuBar"
+
+schemes:
+  BrokerMenuBar:
+    build:
+      targets:
+        BrokerMenuBar: all
+        BrokerMenuBarTests: [test]
+    test:
+      targets:
+        - BrokerMenuBarTests
