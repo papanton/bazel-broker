@@ -212,7 +212,17 @@ func (r *Registry) HydrateFromStore(n int) error {
 		return err
 	}
 	r.mu.Lock()
+	now := r.now()
 	for _, b := range builds {
+		// A build persisted as non-terminal can't still be running across a daemon
+		// restart (its client process is gone). Mark it gone so stale "running"
+		// rows don't resurrect; discovery re-adds any genuinely live build.
+		if !b.State.IsTerminal() {
+			b.State = build.StateGone
+			if b.EndTime.IsZero() {
+				b.EndTime = now
+			}
+		}
 		r.builds[b.InvocationID] = b
 	}
 	count := len(r.builds)
@@ -325,6 +335,20 @@ func (r *Registry) Upsert(b *build.Build) (*build.Build, error) {
 	}
 	if b.ProfileURL != "" {
 		stored.ProfileURL = b.ProfileURL
+	}
+	// Lifecycle: apply a terminal state (BEP finalize / E5) but never downgrade an
+	// already-terminal build back to running. This is what stops a finished build
+	// from ticking "running" forever.
+	if b.State != "" && b.State != build.StateRunning && !stored.State.IsTerminal() {
+		stored.State = b.State
+		if b.ExitCode != 0 {
+			stored.ExitCode = b.ExitCode
+		}
+		if !b.EndTime.IsZero() {
+			stored.EndTime = b.EndTime
+		} else if stored.EndTime.IsZero() {
+			stored.EndTime = now
+		}
 	}
 	stored.LastSeen = now
 	snapshot := *stored

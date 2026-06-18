@@ -192,6 +192,20 @@ func (s *stream) finalize() {
 	// Enrich the registry build (broadcasts a `build` WS upsert automatically).
 	if s.reg != nil {
 		enrich := &build.Build{InvocationID: s.row.InvocationID}
+		// The BEP stream has ended (last_message): the build is terminal. Flip it
+		// out of `running` so the elapsed timer stops and the row reads
+		// finished/failed (otherwise a completed build ticks "running" forever).
+		if s.row.HasFinish && !s.row.Success {
+			enrich.State = build.StateFailed
+		} else {
+			enrich.State = build.StateFinished
+		}
+		enrich.ExitCode = s.row.ExitCode
+		if s.row.FinishedAt != 0 {
+			enrich.EndTime = time.UnixMilli(s.row.FinishedAt).UTC()
+		} else {
+			enrich.EndTime = time.Now().UTC()
+		}
 		if s.profileURL != nil {
 			enrich.ProfileURL = s.profileURL(s.row.InvocationID)
 		}
