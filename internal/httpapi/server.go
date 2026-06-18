@@ -34,6 +34,10 @@ type Server struct {
 	killer   Killer
 	metrics  MetricsProvider
 	admitter Admitter
+
+	// front-end seams (E7): same-origin session auth + extra mux routes
+	browserAuth BrowserAuthenticator
+	muxHook     func(*http.ServeMux)
 }
 
 // New constructs a Server. Reserved routes default to 501 stubs; pass With*
@@ -97,6 +101,11 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /admission/resume", s.admitter.Resume)
 	mux.HandleFunc("POST /admission/drain", s.admitter.Drain)
 	mux.HandleFunc("GET /admission/status", s.admitter.Status)
+
+	// --- E7 web dashboard: GET / + /static + /login + /api/csrf (no API collisions) ---
+	if s.muxHook != nil {
+		s.muxHook(mux)
+	}
 
 	// middleware chain (outer -> inner): recover -> log -> auth
 	return s.recoverer(s.requestLog(s.auth(mux)))

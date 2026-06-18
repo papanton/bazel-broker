@@ -167,12 +167,16 @@ trap 'forward_sig TERM' TERM
 # ---------------------------------------------------------------------------
 BROKER_CACHE_DIR="${BROKER_CACHE_DIR:-$HOME/.cache/bazel-broker/disk_cache}"
 BROKER_REPO_CACHE="${BROKER_REPO_CACHE:-$HOME/.cache/bazel-broker/repo_cache}"
-BROKER_EVENT_DIR="${BROKER_EVENT_DIR:-$HOME/.local/state/bazel-broker/bep}"
-BROKER_PROFILE_DIR="${BROKER_PROFILE_DIR:-$HOME/.local/state/bazel-broker/profiles}"
-mkdir -p "$BROKER_CACHE_DIR" "$BROKER_REPO_CACHE" "$BROKER_EVENT_DIR" "$BROKER_PROFILE_DIR" 2>/dev/null || true
+# BEP + profile go to the per-worktree .bazel-broker dir — the path E1 locked
+# (C7/P4) and E4's tailer watches (<worktree>/.bazel-broker/bep.json). The path is
+# REUSED across rebuilds; the per-output-base lock makes it collision-safe (only
+# one build per worktree at a time). Do NOT use a per-invocation global path — E4
+# joins on BuildStarted.uuid, not the filename, and only tails this exact path.
+BROKER_BEP_DIR="$WORKTREE/.bazel-broker"
+mkdir -p "$BROKER_CACHE_DIR" "$BROKER_REPO_CACHE" "$BROKER_BEP_DIR" 2>/dev/null || true
 
-BEP_FILE="$BROKER_EVENT_DIR/$INVOCATION_ID.bep.json"
-PROFILE_FILE="$BROKER_PROFILE_DIR/$INVOCATION_ID.profile.gz"
+BEP_FILE="$BROKER_BEP_DIR/bep.json"
+PROFILE_FILE="$BROKER_BEP_DIR/command.profile.gz"
 
 # Split args at the command verb and at a literal "--" (end of bazel's flags).
 # Injected build flags go AFTER the command verb and BEFORE any "--".
