@@ -28,9 +28,14 @@ Bazel Broker is a small background daemon that fixes all four, locally.
 ```sh
 brew tap papanton/tap
 brew trust papanton/tap              # one-time: Homebrew requires trusting third-party taps
-brew install --cask bazel-broker     # the menu-bar app (bundles the daemon)
+brew install --cask bazel-broker --appdir="$HOME/Applications"   # menu-bar app — no admin needed
 brew install brokerctl               # the CLI
 ```
+
+`--appdir="$HOME/Applications"` installs without `sudo` (works on locked-down/managed
+Macs). Drop it to install into `/Applications` if you have admin. Everything else — the
+daemon (a per-user LaunchAgent), its config, and `brokerctl` — is user-scoped, so the whole
+setup needs no admin.
 
 Launching the app installs the broker as a per-user LaunchAgent (it keeps running
 independently of the app) and shows live builds in the menu bar.
