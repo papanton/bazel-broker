@@ -55,36 +55,61 @@ struct MenuRootView: View {
     /// Daemon-lifecycle + cache-config actions. The broker runs as a LaunchAgent, so
     /// these manage it independently of the app (quitting the app never stops it).
     private var actions: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             daemonToggle
-            Button("Apply Cache Config to a Folder…") {
+
+            Divider()
+            Text("SET UP A PROJECT")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+
+            labeledAction(
+                title: "Speed Up a Project's Builds…",
+                caption: "Pick a Bazel project folder. Configures it so all its git worktrees share one build cache — rebuilds reuse work instead of starting over.",
+                id: "apply-cache-config-button"
+            ) {
                 if let dir = FolderPicker.chooseWorkspace(prompt: "Apply Config") {
                     chosenWorkspace = dir
                     store.applyCacheConfig(to: dir)
                 }
             }
-            .accessibilityIdentifier("apply-cache-config-button")
 
-            Button("Install build wrapper…") {
+            labeledAction(
+                title: "Queue a Project's Builds…",
+                caption: "Optional. Routes a project's builds through the broker so it can queue/throttle them when your Mac is busy (installs a tools/bazel wrapper).",
+                id: "install-wrapper-button"
+            ) {
                 let dir = chosenWorkspace ?? FolderPicker.chooseWorkspace(prompt: "Install Wrapper")
                 if let dir {
                     chosenWorkspace = dir
                     store.installWrapper(in: dir)
                 }
             }
-            .accessibilityIdentifier("install-wrapper-button")
-            .help("Optional: drop tools/bazel into the workspace for block-before-build admission")
 
             if let status = store.statusLine {
-                Text(status)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                StatusBanner(text: status)
                     .accessibilityIdentifier("status-line")
             }
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// A button with a plain-language caption underneath, so project-setup actions
+    /// explain what they do without jargon.
+    @ViewBuilder
+    private func labeledAction(title: String,
+                               caption: String,
+                               id: String,
+                               action: @escaping () -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Button(title, action: action)
+                .accessibilityIdentifier(id)
+            Text(caption)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     /// A single context-aware Start/Stop toggle (replaces separate Start/Restart/Stop):
@@ -94,6 +119,7 @@ struct MenuRootView: View {
         switch store.daemon {
         case .running:
             Button("Stop Broker") { store.stopBroker() }
+                .help("Stop the broker daemon. This affects every tool, not just this app — builds stop being tracked and queued.")
                 .accessibilityIdentifier("toggle-broker-button")
         case .starting:
             Button("Starting…") {}
@@ -107,12 +133,48 @@ struct MenuRootView: View {
 
     private var footer: some View {
         HStack {
-            Button("Reconnect") { store.reconnect() }
-                .accessibilityIdentifier("reconnect-button")
             Spacer()
             Button("Quit") { NSApplication.shared.terminate(nil) }
                 .accessibilityIdentifier("quit-button")
+                .help("Quit this app. The broker keeps running in the background.")
         }
         .padding(8)
     }
+}
+
+/// Prominent feedback for project-setup / daemon actions: a spinner while a
+/// trailing-"…" message is in progress, a green check on success, a red ✗ on
+/// failure. Replaces the easy-to-miss dim caption.
+struct StatusBanner: View {
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            icon
+            Text(text)
+                .font(.callout)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 6))
+        .foregroundStyle(working ? .secondary : tint)
+    }
+
+    private var working: Bool { text.hasSuffix("…") }
+    private var failed: Bool {
+        let l = text.lowercased()
+        return ["fail", "error", "did not", "unreach", "not found", "invalid"].contains { l.contains($0) }
+    }
+
+    @ViewBuilder private var icon: some View {
+        if working {
+            ProgressView().controlSize(.small)
+        } else {
+            Image(systemName: failed ? "xmark.circle.fill" : "checkmark.circle.fill")
+        }
+    }
+
+    private var tint: Color { failed ? .red : .green }
 }

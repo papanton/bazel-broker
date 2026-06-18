@@ -17,6 +17,10 @@ struct DisconnectedView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
+            Button("Reconnect") { store.reconnect() }
+                .accessibilityIdentifier("reconnect-button")
+                .help("Retry connecting this app to the broker. Does not start or stop the broker itself.")
+                .padding(.top, 2)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 18)
