@@ -36,3 +36,6 @@ broker.json
 
 # Per-worktree broker BEP/profile output dir
 **/.bazel-broker/
+
+# Release artifacts (make dist)
+/dist/

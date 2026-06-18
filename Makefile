@@ -28,6 +28,10 @@ $(BROKERCTL_BIN): $(shell find cmd/brokerctl internal -name '*.go' 2>/dev/null) 
 up:                                     ## build, run the daemon, and open the dashboard (one command; Ctrl-C stops)
 	@scripts/up.sh
 
+.PHONY: dist
+dist:                                   ## build universal (arm64+x86_64) app + brokerctl into dist/ for Homebrew
+	@scripts/dist.sh $(VERSION)
+
 .PHONY: run-broker
 run-broker: $(BROKER_BIN)               ## run the daemon in the foreground (Ctrl-C to stop)
 	$(BROKER_BIN)
