@@ -33,3 +33,6 @@ broker.json
 
 # Stray throwaway harness binaries
 *harness
+
+# Per-worktree broker BEP/profile output dir
+**/.bazel-broker/
