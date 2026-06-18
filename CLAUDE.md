@@ -81,6 +81,26 @@ scripts/verify-fast.sh            the fast verify orchestrator
   (regen with `go test ./internal/api -update`). Reserved routes (E3 kill / E4 metrics+profile /
   E5 admission) return **501** at the exact path the consumer calls; inject a real handler via
   `httpapi.WithKiller/WithMetrics/WithAdmitter` (no main.go edits).
+- **brokerctl (E6):** terminal front-end. Build: `make build`. Unit tests: `make verify-brokerctl`
+  (scoped, no broker). Subcommands: `ls [--json]`, `kill <id>`, `drain` (+ `drain pause`/`drain resume`),
+  `watch [--once] [--json]`, `profile <id> [--print]`. Root flags: `--json --config --port --token --timeout`.
+  Reads `port`/`token`/`host` from `config.json` (same resolution as E2: `--config` > `$BAZEL_BROKER_CONFIG`
+  > `$XDG_CONFIG_HOME` > `~/.config`); `--port`/`--token` override. Calls FROZEN routes:
+  `GET /builds`, `GET /healthz`, `WS /events`, `POST /builds/{id}/kill` (E3),
+  `POST /admission/{drain,pause,resume}` (E5), `GET /builds/{id}/profile` (E4). Reserved routes return
+  **501** → CLI degrades to exit **6** (`not available yet`), NOT a crash. Exit codes:
+  0 ok · 1 usage · 2 config · 3 unreachable · 4 auth(401) · 5 broker(4xx/5xx incl 404) · 6 not-impl(501) · 7 open.
+  `watch` reconnects with backoff across broker restarts (lossless re-snapshot); Ctrl-C exits 0;
+  `--json` emits NDJSON (one event/line). Verify recipe:
+  ```sh
+  make build && ./bin/broker &                       # daemon writes config.json + token
+  TOKEN=$(jq -r .token ~/.config/bazel-broker/config.json); PORT=$(jq -r .port ~/.config/bazel-broker/config.json)
+  curl -sX POST 127.0.0.1:$PORT/register -H "Authorization: Bearer $TOKEN" \
+    -d '{"invocation_id":"v1","worktree":"/wt/a","targets":["//app:App"]}'
+  bin/brokerctl ls --json | jq -e '.builds|length'   # parseable; mirrors /healthz .total
+  bin/brokerctl kill v1; echo $?                      # 6 until E3 lands, then 0
+  bin/brokerctl watch --json --once                  # snapshot + live build events as NDJSON
+  ```
 - **discovery/kill (E3):** launch fake-bazel long; `brokerctl ls`; `brokerctl kill <id>`.
   Broker's kill path must use SIGTERM / process-group SIGINT, not a bare `kill -INT <pid>`.
 - **BEP/metrics (E4):** point ingest at a BEP json; `brokerctl metrics <id>`.

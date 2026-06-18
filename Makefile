@@ -64,5 +64,9 @@ uninstall:                              ## remove the launchd LaunchAgent
 smoke: $(BROKER_BIN)                    ## start broker, run the register->ls->deregister curl flow, assert states
 	scripts/smoke.sh
 
+.PHONY: verify-brokerctl
+verify-brokerctl:                       ## brokerctl unit tests (scoped; no broker needed)
+	go test ./cmd/brokerctl/... ./internal/cli/... ./internal/apiclient/...
+
 .PHONY: clean
 clean: ; rm -rf $(BIN_DIR)
