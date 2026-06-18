@@ -8,6 +8,10 @@ struct MenuRootView: View {
     /// The workspace last chosen via "Apply Cache Config…", so "Install build wrapper"
     /// can target the same directory without re-prompting.
     @State private var chosenWorkspace: URL?
+    /// Broker + project-setup controls live behind a gear so the main menu stays a
+    /// glanceable build list. Auto-revealed when the broker isn't running (so the
+    /// Start control is reachable without hunting).
+    @State private var showSettings = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -16,12 +20,22 @@ struct MenuRootView: View {
 
             content
 
-            Divider()
-            actions
+            if showSettings {
+                Divider()
+                settingsPanel
+            }
             Divider()
             footer
         }
         .task { store.start() }
+        .onChange(of: store.daemon) { _, new in
+            if new == .offline || isFailed(new) { showSettings = true }
+        }
+    }
+
+    private func isFailed(_ s: DaemonState) -> Bool {
+        if case .failed = s { return true }
+        return false
     }
 
     @ViewBuilder
@@ -52,9 +66,10 @@ struct MenuRootView: View {
         }
     }
 
-    /// Daemon-lifecycle + cache-config actions. The broker runs as a LaunchAgent, so
-    /// these manage it independently of the app (quitting the app never stops it).
-    private var actions: some View {
+    /// Settings panel (behind the gear): daemon lifecycle + project-setup actions.
+    /// The broker runs as a LaunchAgent, so these manage it independently of the app
+    /// (quitting the app never stops it).
+    private var settingsPanel: some View {
         VStack(alignment: .leading, spacing: 8) {
             daemonToggle
 
@@ -133,6 +148,16 @@ struct MenuRootView: View {
 
     private var footer: some View {
         HStack {
+            Button {
+                showSettings.toggle()
+            } label: {
+                Label("Settings", systemImage: showSettings ? "gearshape.fill" : "gearshape")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderless)
+            .help("Broker controls & project setup")
+            .accessibilityIdentifier("settings-toggle")
+
             Spacer()
             Button("Quit") { NSApplication.shared.terminate(nil) }
                 .accessibilityIdentifier("quit-button")
