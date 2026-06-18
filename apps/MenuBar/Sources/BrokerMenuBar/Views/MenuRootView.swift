@@ -29,7 +29,10 @@ struct MenuRootView: View {
     private var content: some View {
         switch store.connection {
         case .connected:
-            if store.builds.isEmpty {
+            // Hide `gone` builds: those are discovered processes that have since
+            // vanished — pure noise in a glance view.
+            let visible = store.sortedBuilds.filter { $0.state != .gone }
+            if visible.isEmpty {
                 Text("No active builds")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -37,7 +40,7 @@ struct MenuRootView: View {
             } else {
                 ScrollView {
                     VStack(spacing: 0) {
-                        ForEach(store.sortedBuilds) { build in
+                        ForEach(visible) { build in
                             BuildRowView(build: build)
                             Divider()
                         }
@@ -53,14 +56,7 @@ struct MenuRootView: View {
     /// these manage it independently of the app (quitting the app never stops it).
     private var actions: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Button("Start Broker") { store.startBroker() }
-                    .accessibilityIdentifier("start-broker-button")
-                Button("Restart Broker") { store.restartBroker() }
-                    .accessibilityIdentifier("restart-broker-button")
-                Button("Stop Broker") { store.stopBroker() }
-                    .accessibilityIdentifier("stop-broker-button")
-            }
+            daemonToggle
             Button("Apply Cache Config to a Folder…") {
                 if let dir = FolderPicker.chooseWorkspace(prompt: "Apply Config") {
                     chosenWorkspace = dir
@@ -89,6 +85,24 @@ struct MenuRootView: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// A single context-aware Start/Stop toggle (replaces separate Start/Restart/Stop):
+    /// "Stop Broker" when running, "Start Broker" when not, disabled while starting.
+    @ViewBuilder
+    private var daemonToggle: some View {
+        switch store.daemon {
+        case .running:
+            Button("Stop Broker") { store.stopBroker() }
+                .accessibilityIdentifier("toggle-broker-button")
+        case .starting:
+            Button("Starting…") {}
+                .disabled(true)
+                .accessibilityIdentifier("toggle-broker-button")
+        case .offline, .failed:
+            Button("Start Broker") { store.startBroker() }
+                .accessibilityIdentifier("toggle-broker-button")
+        }
     }
 
     private var footer: some View {

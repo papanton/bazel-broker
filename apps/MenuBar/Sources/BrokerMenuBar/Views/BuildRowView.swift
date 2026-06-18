@@ -8,15 +8,28 @@ struct BuildRowView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "shippingbox")
+                .foregroundStyle(.secondary)
+                .font(.headline)
+                .help("Bazel build in this worktree")
             VStack(alignment: .leading, spacing: 2) {
                 Text(build.displayName)
                     .font(.headline)
                     .accessibilityIdentifier("build-name-\(build.invocationID)")
+                // Secondary line: the targets being built, or — for a discovered build
+                // with no known targets — the worktree path so the name has context.
                 if !build.targets.isEmpty {
                     Text(build.targets.joined(separator: " "))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .truncationMode(.middle)
+                } else {
+                    Text(build.worktree)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
                 metaRow
             }
@@ -25,6 +38,7 @@ struct BuildRowView: View {
         }
         .padding(8)
         .opacity(build.isActive ? 1.0 : 0.55)
+        .help(build.worktree)
     }
 
     private var metaRow: some View {
