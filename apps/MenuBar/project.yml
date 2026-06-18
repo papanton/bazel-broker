@@ -26,6 +26,20 @@ targets:
         excludes:
           - "Info.plist"
           - "BrokerMenuBar.entitlements"
+    preBuildScripts:
+      # Build the broker daemon at the repo root and bundle it + the deploy/cache-config
+      # helper scripts into the .app's Resources/. Makes the produced .app a self-contained
+      # single entry point (the app ensures the daemon is running and applies cache config).
+      # The copies are build artifacts, not committed. See scripts/bundle-resources.sh.
+      - name: Bundle broker + scripts into Resources
+        script: "\"$SRCROOT/scripts/bundle-resources.sh\""
+        outputFiles:
+          - "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/broker"
+          - "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/install.sh"
+          - "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/com.bazelbroker.broker.plist"
+          - "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/setup.sh"
+          - "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/bazelrc.fragment"
+          - "$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/bazel"
     info:
       path: Sources/BrokerMenuBar/Info.plist
       properties:

@@ -5,14 +5,24 @@ struct MenuHeaderView: View {
     @Environment(BrokerStore.self) private var store
 
     var body: some View {
-        HStack {
-            Image(systemName: "hammer.fill")
-                .foregroundStyle(.secondary)
-            Text(summaryText)
-                .font(.headline)
-                .accessibilityIdentifier("summary-label")
-            Spacer()
-            connectionDot
+        VStack(spacing: 4) {
+            HStack {
+                Image(systemName: "hammer.fill")
+                    .foregroundStyle(.secondary)
+                Text(summaryText)
+                    .font(.headline)
+                    .accessibilityIdentifier("summary-label")
+                Spacer()
+                connectionDot
+            }
+            HStack {
+                daemonDot
+                Text(store.daemon.label)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("daemon-label")
+                Spacer()
+            }
         }
         .padding(8)
     }
@@ -34,6 +44,20 @@ struct MenuHeaderView: View {
         case .disconnected:
             Circle().fill(.red).frame(width: 8, height: 8)
                 .help("Disconnected")
+        }
+    }
+
+    @ViewBuilder
+    private var daemonDot: some View {
+        switch store.daemon {
+        case .running:
+            Circle().fill(.green).frame(width: 6, height: 6)
+        case .starting:
+            Circle().fill(.yellow).frame(width: 6, height: 6)
+        case .offline:
+            Circle().fill(.gray).frame(width: 6, height: 6)
+        case .failed:
+            Circle().fill(.red).frame(width: 6, height: 6)
         }
     }
 }

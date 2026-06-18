@@ -5,6 +5,9 @@ import AppKit
 /// Connection is tied to the menu lifetime via `.task`.
 struct MenuRootView: View {
     @Environment(BrokerStore.self) private var store
+    /// The workspace last chosen via "Apply Cache Config…", so "Install build wrapper"
+    /// can target the same directory without re-prompting.
+    @State private var chosenWorkspace: URL?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -14,6 +17,8 @@ struct MenuRootView: View {
             content
                 .frame(maxHeight: 360)
 
+            Divider()
+            actions
             Divider()
             footer
         }
@@ -42,6 +47,48 @@ struct MenuRootView: View {
         case .connecting, .disconnected:
             DisconnectedView()
         }
+    }
+
+    /// Daemon-lifecycle + cache-config actions. The broker runs as a LaunchAgent, so
+    /// these manage it independently of the app (quitting the app never stops it).
+    private var actions: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Button("Start Broker") { store.startBroker() }
+                    .accessibilityIdentifier("start-broker-button")
+                Button("Restart Broker") { store.restartBroker() }
+                    .accessibilityIdentifier("restart-broker-button")
+                Button("Stop Broker") { store.stopBroker() }
+                    .accessibilityIdentifier("stop-broker-button")
+            }
+            Button("Apply Cache Config to a Folder…") {
+                if let dir = FolderPicker.chooseWorkspace(prompt: "Apply Config") {
+                    chosenWorkspace = dir
+                    store.applyCacheConfig(to: dir)
+                }
+            }
+            .accessibilityIdentifier("apply-cache-config-button")
+
+            Button("Install build wrapper…") {
+                let dir = chosenWorkspace ?? FolderPicker.chooseWorkspace(prompt: "Install Wrapper")
+                if let dir {
+                    chosenWorkspace = dir
+                    store.installWrapper(in: dir)
+                }
+            }
+            .accessibilityIdentifier("install-wrapper-button")
+            .help("Optional: drop tools/bazel into the workspace for block-before-build admission")
+
+            if let status = store.statusLine {
+                Text(status)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .accessibilityIdentifier("status-line")
+            }
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var footer: some View {

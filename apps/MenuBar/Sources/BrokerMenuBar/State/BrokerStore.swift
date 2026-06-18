@@ -54,6 +54,11 @@ final class BrokerStore {
     private(set) var builds: [Build] = []
     private(set) var connection: ConnectionState = .connecting
 
+    /// Lifecycle of the broker daemon (a LaunchAgent the app ensures is running).
+    private(set) var daemon: DaemonState = .offline
+    /// Last daemon-action / cache-config message, shown transiently in the menu.
+    private(set) var statusLine: String?
+
     private var client: BrokerClient?
     private var loopTask: Task<Void, Never>?
     private var backoff = Backoff(min: 0.5, max: 30)
@@ -76,7 +81,46 @@ final class BrokerStore {
 
     func start() {
         guard loopTask == nil else { return }
-        reconnect()
+        loopTask = Task { [weak self] in await self?.bootstrapAndConnect() }
+    }
+
+    /// The single-entry-point bootstrap: ensure the daemon is running (start it as a
+    /// LaunchAgent if it is not), then connect. Quitting the app never stops the daemon.
+    private func bootstrapAndConnect() async {
+        await ensureDaemonRunning()
+        await connectLoop()
+    }
+
+    /// The daemon-owned config when present, else the fixed default-port config for the
+    /// pre-config `/healthz` probe (the daemon writes config.json on its first run).
+    private var probingConfig: BrokerConfig {
+        (try? TokenLoader.load()) ?? BrokerConfig(port: 8765, token: "")
+    }
+
+    /// Probe `/healthz`; if unreachable, bootstrap the LaunchAgent and poll until ready.
+    private func ensureDaemonRunning() async {
+        if await DaemonController.probe(config: probingConfig) != nil {
+            daemon = .running
+            return
+        }
+        await bootstrapAgent(DaemonController.startAgent, failurePrefix: "broker start failed")
+    }
+
+    /// Shared agent-bootstrap step: run an install action, then poll `/healthz`. Both the
+    /// launch path and the explicit "Restart Broker" action funnel through here.
+    @discardableResult
+    private func bootstrapAgent(_ action: () -> DaemonActionResult,
+                                failurePrefix: String) async -> Bool {
+        daemon = .starting
+        let result = action()
+        guard result.ok else {
+            daemon = .failed(result.message)
+            statusLine = "\(failurePrefix): \(result.message)"
+            return false
+        }
+        let ready = await DaemonController.waitUntilReady(config: probingConfig)
+        daemon = ready ? .running : .offline
+        return ready
     }
 
     /// Test/preview seam: inject a snapshot and connection state without networking.
@@ -102,6 +146,7 @@ final class BrokerStore {
                 let initial = try await client.fetchBuilds()
                 builds = initial
                 connection = .connected
+                daemon = .running
                 backoff.reset()
 
                 // Live deltas until the socket errors/closes.
@@ -112,9 +157,47 @@ final class BrokerStore {
                 connection = .disconnected(reason: "connection closed")
             } catch {
                 connection = .disconnected(reason: Self.describe(error))
+                if daemon == .running { daemon = .offline }
             }
             if Task.isCancelled { break }
             try? await Task.sleep(for: .seconds(backoff.next()))
+        }
+    }
+
+    // MARK: Daemon lifecycle actions (menu-driven)
+
+    /// "Start Broker" — bootstrap the LaunchAgent, then connect.
+    func startBroker() {
+        statusLine = "starting broker…"
+        loopTask?.cancel()
+        loopTask = Task { [weak self] in await self?.bootstrapAndConnect() }
+    }
+
+    /// "Restart Broker" — bootout + bootstrap the LaunchAgent (an idempotent re-bootstrap
+    /// via `startAgent`), then reconnect.
+    func restartBroker() {
+        statusLine = "restarting broker…"
+        loopTask?.cancel()
+        loopTask = Task { [weak self] in
+            guard let self else { return }
+            let ready = await self.bootstrapAgent(DaemonController.startAgent,
+                                                   failurePrefix: "restart failed")
+            self.statusLine = ready ? "broker restarted" : "broker did not come up"
+            await self.connectLoop()
+        }
+    }
+
+    /// "Stop Broker" — uninstall the LaunchAgent (the daemon stops and stays stopped).
+    func stopBroker() {
+        loopTask?.cancel()
+        loopTask = nil
+        Task { [weak self] in
+            guard let self else { return }
+            let result = DaemonController.stopAgent()
+            self.daemon = .offline
+            self.connection = .disconnected(reason: "broker stopped")
+            self.builds = []
+            self.statusLine = result.ok ? "broker stopped" : "stop failed: \(result.message)"
         }
     }
 
@@ -124,6 +207,27 @@ final class BrokerStore {
         Task { [weak self] in
             guard let client = self?.client else { return }
             try? await client.kill(invocationID: invocationID)
+        }
+    }
+
+    // MARK: Cache config (E1) — apply to a user-chosen workspace
+
+    /// Run the bundled `setup.sh <dir>` against the chosen workspace, surfacing the
+    /// result in the transient status line.
+    func applyCacheConfig(to directory: URL) {
+        statusLine = "applying cache config…"
+        Task { [weak self] in
+            let result = CacheConfigApplier.applyConfig(to: directory)
+            self?.statusLine = result.message
+        }
+    }
+
+    /// Copy the bundled `tools/bazel` admission wrapper into `<dir>/tools/bazel`.
+    func installWrapper(in directory: URL) {
+        statusLine = "installing build wrapper…"
+        Task { [weak self] in
+            let result = CacheConfigApplier.installWrapper(in: directory)
+            self?.statusLine = result.message
         }
     }
 
