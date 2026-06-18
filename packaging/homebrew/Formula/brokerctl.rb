@@ -6,7 +6,7 @@ class Brokerctl < Formula
   homepage "https://github.com/papanton/bazel-broker"
   version "0.1.0"
   url "https://github.com/papanton/bazel-broker/releases/download/v#{version}/brokerctl-#{version}.tar.gz"
-  sha256 "REPLACE_WITH_BROKERCTL_TARBALL_SHA256"
+  sha256 "186c366d4654653b9dcf4fc38fecf52d1cc7460c4b2bf8a98eb0f1d93239701c"
 
   def install
     bin.install "brokerctl"
