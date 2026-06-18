@@ -26,16 +26,20 @@ Bazel Broker is a small background daemon that fixes all four, locally.
 ## Install (Homebrew)
 
 ```sh
+# No admin? Install casks into ~/Applications. Set this ONCE (e.g. in ~/.zshrc) so it
+# applies to upgrades + uninstalls too — a per-command --appdir that you forget on
+# `brew upgrade` makes brew look in /Applications and fail. Skip this if you have admin.
+export HOMEBREW_CASK_OPTS="--appdir=$HOME/Applications"
+
 brew tap papanton/tap
 brew trust papanton/tap              # one-time: Homebrew requires trusting third-party taps
-brew install --cask bazel-broker --appdir="$HOME/Applications"   # menu-bar app — no admin needed
+brew install --cask bazel-broker     # menu-bar app (bundles the daemon)
 brew install brokerctl               # the CLI
 ```
 
-`--appdir="$HOME/Applications"` installs without `sudo` (works on locked-down/managed
-Macs). Drop it to install into `/Applications` if you have admin. Everything else — the
-daemon (a per-user LaunchAgent), its config, and `brokerctl` — is user-scoped, so the whole
-setup needs no admin.
+Everything is user-scoped — the app, the daemon (a per-user LaunchAgent), its config, and
+`brokerctl` — so with `HOMEBREW_CASK_OPTS` set, the whole setup (and every upgrade) needs no
+`sudo`. With admin, omit the env var and it installs to `/Applications` as usual.
 
 Launching the app installs the broker as a per-user LaunchAgent (it keeps running
 independently of the app) and shows live builds in the menu bar.
