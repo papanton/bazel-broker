@@ -1,0 +1,11 @@
+load("@rules_swift//swift:swift.bzl", "swift_library")
+
+# Analytics -> MathKit creates a 2-level dependency chain (App -> Analytics -> MathKit),
+# so the broker has a non-trivial critical path to visualize.
+swift_library(
+    name = "Analytics",
+    srcs = ["Analytics.swift"],
+    module_name = "Analytics",
+    visibility = ["//visibility:public"],
+    deps = ["//Packages/MathKit"],
+)

@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# Bazel symlinks + per-build outputs (at any depth)
+bazel-*
+**/command.profile.gz
+**/.bazel-broker-bep.json
+
+# Go (future broker daemon + brokerctl)
+/bin/
+*.test
+*.out
+
+# Editors
+.idea/
+.vscode/
+*.swp

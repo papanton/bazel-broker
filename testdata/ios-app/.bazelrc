@@ -1,0 +1,14 @@
+# Broker iOS demo build config.
+
+# Build for the iOS simulator on Apple Silicon by default, so `bazel build //...`
+# produces a real app binary without needing a device or provisioning profile.
+build --apple_platform_type=ios
+build --ios_minimum_os=17.0
+build --ios_multi_cpus=sim_arm64
+
+# --- Bazel Broker observability hooks (subset of E1; see plans/epics/E1-cache-config.md) ---
+# Per-worktree, relative paths: collision-safe across worktrees via the per-output-base lock.
+build --profile=command.profile.gz
+build --build_event_json_file=.bazel-broker-bep.json
+build --noslim_profile
+build --experimental_profile_include_target_label

@@ -1,0 +1,3 @@
+bazel-*
+command.profile.gz
+.bazel-broker-bep.json

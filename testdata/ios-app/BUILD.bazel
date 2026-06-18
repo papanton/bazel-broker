@@ -1,0 +1,14 @@
+load("@rules_apple//apple:ios.bzl", "ios_application")
+
+# The iOS app. Depends on the app library, which fans out into the dummy packages,
+# giving the broker a small but real action graph (multiple swiftc invocations +
+# bundling) for cache / timing / critical-path verification.
+ios_application(
+    name = "BrokerDemo",
+    bundle_id = "io.bazelbroker.demo",
+    families = ["iphone"],
+    infoplists = ["//Sources/App:Info.plist"],
+    minimum_os_version = "17.0",
+    visibility = ["//visibility:public"],
+    deps = ["//Sources/App:AppLib"],
+)
