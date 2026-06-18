@@ -4,9 +4,9 @@
 class Brokerctl < Formula
   desc "CLI for the Bazel Broker daemon (ls / watch / kill / drain / profile)"
   homepage "https://github.com/papanton/bazel-broker"
-  version "0.1.1"
+  version "0.1.2"
   url "https://github.com/papanton/bazel-broker/releases/download/v#{version}/brokerctl-#{version}.tar.gz"
-  sha256 "5ccd5ce4cb7e87caf8bd38a9bfbe9d336b1c7d22df30aa17c5874445bd3a02f2"
+  sha256 "e97fa04535e1f3b647ca4c758d886538cc1eeb869e141c31f5bb28b5afd06554"
 
   def install
     bin.install "brokerctl"

@@ -2,8 +2,8 @@
 # Copy this into your tap repo (homebrew-tap/Casks/) and fill in OWNER + sha256.
 # Install:  brew install --cask papanton/tap/bazel-broker
 cask "bazel-broker" do
-  version "0.1.1"
-  sha256 "dc20c06d0e44ebc50f7dc1d5466eb5e0dab5efa73de40a0335ab8386f83cf67b"
+  version "0.1.2"
+  sha256 "f516755a467a4b89e95e98a149bfdd257d4d202b77915f395f467fa65a1fa7b4"
 
   url "https://github.com/papanton/bazel-broker/releases/download/v#{version}/BrokerMenuBar-#{version}.zip"
   name "Bazel Broker"
